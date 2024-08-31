@@ -78,9 +78,10 @@ public extension HTTP {
             requestBody: RequestBody,
             requestContentType: HTTP.MimeType,
             responseContentType: HTTP.MimeType,
+            emptyResponseStatusCodes: Set<Int>,
             interceptors: [HTTP.Interceptor],
             context: HTTP.Context
-        ) async -> FetchResult<ResponseBody, HTTP.Failure<ErrorBody>>  {
+        ) async -> FetchResult<ResponseBody?, HTTP.Failure<ErrorBody>>  {
             var request = URLRequest(url: url)
             request.httpMethod = method.rawValue
 
@@ -106,7 +107,7 @@ public extension HTTP {
             }
 
             for observer in self.observers {
-                observer.didPrepare(request)
+                observer.didPrepare(request, with: context)
             }
 
             var (data, httpURLResponse): (Data, HTTPURLResponse)
@@ -114,7 +115,7 @@ public extension HTTP {
                 (data, httpURLResponse) = try await session.data(for: request)
             } catch {
                 for observer in self.observers {
-                    observer.didEncounter(error)
+                    observer.didEncounter(error, with: context)
                 }
 
                 // Give the last interceptor the opportunity to handle the error first.
@@ -137,7 +138,7 @@ public extension HTTP {
             }
 
             for observer in self.observers {
-                observer.didReceive(httpURLResponse)
+                observer.didReceive(httpURLResponse, with: context)
             }
 
             do {
@@ -160,17 +161,25 @@ public extension HTTP {
                 return .failure(.processingError(error))
             }
 
+            if emptyResponseStatusCodes.contains(httpURLResponse.statusCode) {
+                return .success(nil)
+            }
+
             switch httpURLResponse.statusCode {
                 case 200..<300:
                     do {
-                        return .success(try decode(data, as: responseContentType))
+                        // Decode data as non-optional ResponseBody
+                        let response: ResponseBody = try decode(data, as: responseContentType)
+                        return .success(response)
                     } catch {
                         return .failure(.decodingError(error))
                     }
 
                 case 300..<400:
                     do {
-                        return .success(try decode(data, as: responseContentType))
+                        // Decode data as non-optional ResponseBody
+                        let response: ResponseBody = try decode(data, as: responseContentType)
+                        return .success(response)
                     } catch {
                         return .failure(.decodingError(error))
                     }
@@ -226,7 +235,7 @@ public extension HTTP {
             }
 
             for observer in self.observers {
-                observer.didPrepare(request)
+                observer.didPrepare(request, with: context)
             }
 
             var (data, httpURLResponse): (Data, HTTPURLResponse)
@@ -234,7 +243,7 @@ public extension HTTP {
                 (data, httpURLResponse) = try await session.data(for: request)
             } catch {
                 for observer in self.observers {
-                    observer.didEncounter(error)
+                    observer.didEncounter(error, with: context)
                 }
 
                 // Give the last interceptor the opportunity to handle the error first.
@@ -257,7 +266,7 @@ public extension HTTP {
             }
 
             for observer in self.observers {
-                observer.didReceive(httpURLResponse)
+                observer.didReceive(httpURLResponse, with: context)
             }
 
             do {
@@ -310,9 +319,10 @@ public extension HTTP {
             _ method: HTTP.Method,
             at url: URL,
             responseContentType: HTTP.MimeType,
+            emptyResponseStatusCodes: Set<Int>,
             interceptors: [HTTP.Interceptor],
             context: HTTP.Context
-        ) async -> FetchResult<ResponseBody, HTTP.Failure<ErrorBody>> {
+        ) async -> FetchResult<ResponseBody?, HTTP.Failure<ErrorBody>> {
             var request = URLRequest(url: url)
             request.httpMethod = method.rawValue
 
@@ -331,7 +341,7 @@ public extension HTTP {
             }
 
             for observer in self.observers {
-                observer.didPrepare(request)
+                observer.didPrepare(request, with: context)
             }
 
             var (data, httpURLResponse): (Data, HTTPURLResponse)
@@ -339,7 +349,7 @@ public extension HTTP {
                 (data, httpURLResponse) = try await session.data(for: request)
             } catch {
                 for observer in self.observers {
-                    observer.didEncounter(error)
+                    observer.didEncounter(error, with: context)
                 }
 
                 // Give the last interceptor the opportunity to handle the error first.
@@ -362,7 +372,7 @@ public extension HTTP {
             }
 
             for observer in self.observers {
-                observer.didReceive(httpURLResponse)
+                observer.didReceive(httpURLResponse, with: context)
             }
 
             do {
@@ -385,17 +395,25 @@ public extension HTTP {
                 return .failure(.processingError(error))
             }
 
+            if emptyResponseStatusCodes.contains(httpURLResponse.statusCode) {
+                return .success(nil)
+            }
+
             switch httpURLResponse.statusCode {
                 case 200..<300:
                     do {
-                        return .success(try decode(data, as: responseContentType))
+                        // Decode data as non-optional ResponseBody
+                        let response: ResponseBody = try decode(data, as: responseContentType)
+                        return .success(response)
                     } catch {
                         return .failure(.decodingError(error))
                     }
 
                 case 300..<400:
                     do {
-                        return .success(try decode(data, as: responseContentType))
+                        // Decode data as non-optional ResponseBody
+                        let response: ResponseBody = try decode(data, as: responseContentType)
+                        return .success(response)
                     } catch {
                         return .failure(.decodingError(error))
                     }
@@ -441,7 +459,7 @@ public extension HTTP {
             }
 
             for observer in self.observers {
-                observer.didPrepare(request)
+                observer.didPrepare(request, with: context)
             }
 
             var (data, httpURLResponse): (Data, HTTPURLResponse)
@@ -449,7 +467,7 @@ public extension HTTP {
                 (data, httpURLResponse) = try await session.data(for: request)
             } catch {
                 for observer in self.observers {
-                    observer.didEncounter(error)
+                    observer.didEncounter(error, with: context)
                 }
 
                 // Give the last interceptor the opportunity to handle the error first.
@@ -472,7 +490,7 @@ public extension HTTP {
             }
 
             for observer in self.observers {
-                observer.didReceive(httpURLResponse)
+                observer.didReceive(httpURLResponse, with: context)
             }
 
             do {
@@ -532,15 +550,17 @@ private extension HTTP.Client {
         requestBody: RequestBody,
         requestContentType: HTTP.MimeType,
         responseContentType: HTTP.MimeType,
+        emptyResponseStatusCodes: Set<Int>,
         interceptors: [HTTP.Interceptor],
         context: HTTP.Context
-    ) async -> Result<ResponseBody, HTTP.Failure<ErrorBody>> {
-        let result: FetchResult<ResponseBody, HTTP.Failure<ErrorBody>> = await fetch(
+    ) async -> Result<ResponseBody?, HTTP.Failure<ErrorBody>> {
+        let result: FetchResult<ResponseBody?, HTTP.Failure<ErrorBody>> = await fetch(
             method,
             at: url,
             requestBody: requestBody,
             requestContentType: requestContentType,
             responseContentType: responseContentType,
+            emptyResponseStatusCodes: emptyResponseStatusCodes,
             interceptors: interceptors,
             context: context
         )
@@ -570,6 +590,7 @@ private extension HTTP.Client {
                     requestBody: requestBody,
                     requestContentType: requestContentType,
                     responseContentType: responseContentType,
+                    emptyResponseStatusCodes: emptyResponseStatusCodes,
                     interceptors: interceptors,
                     context: context
                 )
@@ -597,6 +618,7 @@ private extension HTTP.Client {
                     requestBody: requestBody,
                     requestContentType: requestContentType,
                     responseContentType: responseContentType,
+                    emptyResponseStatusCodes: emptyResponseStatusCodes,
                     interceptors: interceptors,
                     context: context
                 )
@@ -680,13 +702,15 @@ private extension HTTP.Client {
         _ method: HTTP.Method,
         at url: URL,
         responseContentType: HTTP.MimeType,
+        emptyResponseStatusCodes: Set<Int>,
         interceptors: [HTTP.Interceptor],
         context: HTTP.Context
-    ) async -> Result<ResponseBody, HTTP.Failure<ErrorBody>> {
-        let result: FetchResult<ResponseBody, HTTP.Failure<ErrorBody>> = await fetch(
+    ) async -> Result<ResponseBody?, HTTP.Failure<ErrorBody>> {
+        let result: FetchResult<ResponseBody?, HTTP.Failure<ErrorBody>> = await fetch(
             method,
             at: url,
             responseContentType: responseContentType,
+            emptyResponseStatusCodes: emptyResponseStatusCodes,
             interceptors: interceptors,
             context: context
         )
@@ -714,6 +738,7 @@ private extension HTTP.Client {
                     method,
                     at: url,
                     responseContentType: responseContentType,
+                    emptyResponseStatusCodes: emptyResponseStatusCodes,
                     interceptors: interceptors,
                     context: context
                 )
@@ -739,6 +764,7 @@ private extension HTTP.Client {
                     method,
                     at: url,
                     responseContentType: responseContentType,
+                    emptyResponseStatusCodes: emptyResponseStatusCodes,
                     interceptors: interceptors,
                     context: context
                 )
@@ -820,8 +846,9 @@ public extension HTTP.Client {
         requestBody: RequestBody,
         requestContentType: HTTP.MimeType,
         responseContentType: HTTP.MimeType,
+        emptyResponseStatusCodes: Set<Int>,
         interceptors: [HTTP.Interceptor]
-    ) async -> Result<ResponseBody, HTTP.Failure<ErrorBody>> {
+    ) async -> Result<ResponseBody?, HTTP.Failure<ErrorBody>> {
         // Apply per-request interceptors last,
         // having per-request interceptors prepare outgoing requests after per-client interceptors.
         // And having per-request interceptors process incoming responses before per-client interceptors.
@@ -839,9 +866,52 @@ public extension HTTP.Client {
             requestBody: requestBody,
             requestContentType: requestContentType,
             responseContentType: responseContentType,
+            emptyResponseStatusCodes: emptyResponseStatusCodes,
             interceptors: interceptors,
             context: context
         )
+    }
+
+    func request<RequestBody: Encodable, ResponseBody: Decodable, ErrorBody: Decodable>(
+        _ method: HTTP.Method,
+        at url: URL,
+        requestBody: RequestBody,
+        requestContentType: HTTP.MimeType,
+        responseContentType: HTTP.MimeType,
+        interceptors: [HTTP.Interceptor]
+    ) async -> Result<ResponseBody, HTTP.Failure<ErrorBody>> {
+        // Apply per-request interceptors last,
+        // having per-request interceptors prepare outgoing requests after per-client interceptors.
+        // And having per-request interceptors process incoming responses before per-client interceptors.
+        let interceptors = self.interceptors + interceptors
+
+        let context = HTTP.Context(
+            encoder: encoder,
+            decoder: decoder,
+            retryCount: 0
+        )
+
+        let result: Result<ResponseBody?, HTTP.Failure<ErrorBody>> = await request(
+            method,
+            at: url,
+            requestBody: requestBody,
+            requestContentType: requestContentType,
+            responseContentType: responseContentType,
+            emptyResponseStatusCodes: [],
+            interceptors: interceptors,
+            context: context
+        )
+
+        switch result {
+            case .success(let response):
+                guard let response else {
+                    fatalError("Expected response to be non-optional when emptyResponseStatusCodes is empty")
+                }
+                return .success(response)
+
+            case .failure(let error):
+                return .failure(error)
+        }
     }
 
     func request<RequestBody: Encodable, ErrorBody: Decodable>(
@@ -876,8 +946,9 @@ public extension HTTP.Client {
         _ method: HTTP.Method,
         at url: URL,
         responseContentType: HTTP.MimeType,
+        emptyResponseStatusCodes: Set<Int>,
         interceptors: [HTTP.Interceptor]
-    ) async -> Result<ResponseBody, HTTP.Failure<ErrorBody>> {
+    ) async -> Result<ResponseBody?, HTTP.Failure<ErrorBody>> {
         // Apply per-request interceptors last,
         // having per-request interceptors prepare outgoing requests after per-client interceptors.
         // And having per-request interceptors process incoming responses before per-client interceptors.
@@ -893,9 +964,48 @@ public extension HTTP.Client {
             method,
             at: url,
             responseContentType: responseContentType,
+            emptyResponseStatusCodes: emptyResponseStatusCodes,
             interceptors: interceptors,
             context: context
         )
+    }
+
+    func request<ResponseBody: Decodable, ErrorBody: Decodable>(
+        _ method: HTTP.Method,
+        at url: URL,
+        responseContentType: HTTP.MimeType,
+        interceptors: [HTTP.Interceptor]
+    ) async -> Result<ResponseBody, HTTP.Failure<ErrorBody>> {
+        // Apply per-request interceptors last,
+        // having per-request interceptors prepare outgoing requests after per-client interceptors.
+        // And having per-request interceptors process incoming responses before per-client interceptors.
+        let interceptors = self.interceptors + interceptors
+
+        let context = HTTP.Context(
+            encoder: encoder,
+            decoder: decoder,
+            retryCount: 0
+        )
+
+        let result: Result<ResponseBody?, HTTP.Failure<ErrorBody>> = await request(
+            method,
+            at: url,
+            responseContentType: responseContentType,
+            emptyResponseStatusCodes: [],
+            interceptors: interceptors,
+            context: context
+        )
+
+        switch result {
+            case .success(let response):
+                guard let response else {
+                    fatalError("Expected response to be non-optional when emptyResponseStatusCodes is empty")
+                }
+                return .success(response)
+
+            case .failure(let error):
+                return .failure(error)
+        }
     }
 
     func request<ErrorBody: Decodable>(

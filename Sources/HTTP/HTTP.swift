@@ -46,9 +46,9 @@ public enum HTTP {
     }
 
     public protocol Observer: Sendable {
-        func didPrepare(_ request: URLRequest)
-        func didEncounter(_ transportError: any Error)
-        func didReceive(_ response: HTTPURLResponse)
+        func didPrepare(_ request: URLRequest, with context: Context)
+        func didEncounter(_ transportError: any Error, with context: Context)
+        func didReceive(_ response: HTTPURLResponse, with context: Context)
     }
 
     public protocol Session: Sendable {

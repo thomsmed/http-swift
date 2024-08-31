@@ -4,7 +4,7 @@ import Testing
 import HTTP
 
 @Suite struct HTTPClientRetryTests {
-    @Test func testClientRetryInterceptorRetries() async throws {
+    @Test func test_request_withClientRetryInterceptor_retriesRequest() async throws {
         let url = URL(string: "https://example.ios")!
         let session = MockSession()
         let maxRetryCount = 5
@@ -49,7 +49,7 @@ import HTTP
         #expect(retryInterceptor.numberOfResponsesProcessed == 2)
     }
 
-    @Test func testRequestRetryInterceptorRetries() async throws {
+    @Test func test_request_withRequestRetryInterceptor_retriesRequest() async throws {
         let url = URL(string: "https://example.ios")!
         let session = MockSession()
         let retryInterceptor = RetryInterceptor(
@@ -90,7 +90,7 @@ import HTTP
         #expect(retryInterceptor.numberOfResponsesProcessed == 2)
     }
 
-    @Test func testClientAndRequestRetryInterceptorRetries() async throws {
+    @Test func test_request_withClientAndRequestRetryInterceptor_retriesRequest() async throws {
         let url = URL(string: "https://example.ios")!
         let session = MockSession()
         let clientRetryInterceptor = RetryInterceptor(
@@ -142,7 +142,7 @@ import HTTP
         #expect(requestRetryInterceptor.numberOfResponsesProcessed == 3)
     }
 
-    @Test func testClientAndRequestRetryInterceptorRetriesMultipleTimes() async throws {
+    @Test func test_request_withClientAndRequestRetryInterceptor_retriesRequestMultipleTimes() async throws {
         let url = URL(string: "https://example.ios")!
         let session = MockSession()
         let clientRetryInterceptor = RetryInterceptor(
@@ -194,7 +194,7 @@ import HTTP
         #expect(requestRetryInterceptor.numberOfResponsesProcessed == 5)
     }
 
-    @Test func testClientAndRequestRetryInterceptorRetriesTooManyTimesFailsWithMaxRetryCountReachedError() async throws {
+    @Test func test_request_withClientAndRequestRetryInterceptor_retriesRequestAndFailsWithMaxRetryCountReachedError() async throws {
         let url = URL(string: "https://example.ios")!
         let session = MockSession()
         let maxRetryCount = 5

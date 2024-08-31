@@ -4,7 +4,7 @@ import Testing
 import HTTP
 
 @Suite struct HTTPInterceptorTests {
-    @Test func testClientInterceptorWrapsAndUnwrapsPostRequest() async throws {
+    @Test func test_request_post_withClientInterceptor_wrapsRequestAndUnwrapsResponse() async throws {
         let url = URL(string: "https://example.ios")!
         let session = MockSession()
         let httpClient = HTTP.Client(
@@ -45,7 +45,7 @@ import HTTP
         #expect(responseBody == expectedResponseBody)
     }
 
-    @Test func testRequestInterceptorWrapsAndUnwrapsPostRequest() async throws {
+    @Test func test_request_post_withRequestInterceptor_wrapsRequestAndUnwrapsResponse() async throws {
         let url = URL(string: "https://example.ios")!
         let session = MockSession()
         let httpClient = HTTP.Client(
@@ -83,7 +83,7 @@ import HTTP
         #expect(responseBody == expectedResponseBody)
     }
 
-    @Test func testClientAndRequestInterceptorWrapsAndUnwrapsPostRequest() async throws {
+    @Test func test_request_post_withClientAndRequestInterceptor_wrapsRequestAndUnwrapsResponse() async throws {
         let url = URL(string: "https://example.ios")!
         let session = MockSession()
         let httpClient = HTTP.Client(

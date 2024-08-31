@@ -4,7 +4,7 @@ import Testing
 import HTTP
 
 @Suite struct HTTPObserverTests {
-    @Test func testSingleClientObserverObservesSuccessfulPostRequest() async throws {
+    @Test func test_request_post_withSingleClientObserver_observesSuccessfulResponse() async throws {
         let url = URL(string: "https://example.ios")!
         let session = MockSession()
         let countingObserver = CountingObserver()
@@ -44,7 +44,7 @@ import HTTP
         #expect(countingObserver.numberOfDidReceive == 1)
     }
 
-    @Test func testTwoClientObserversObservesSuccessfulPostRequest() async throws {
+    @Test func test_request_post_withTwoClientObservers_observesSuccessfulResponse() async throws {
         let url = URL(string: "https://example.ios")!
         let session = MockSession()
         let countingObserver = CountingObserver()
@@ -93,15 +93,15 @@ private final class CountingObserver: HTTP.Observer, @unchecked Sendable {
     private(set) var numberOfDidEncounter: Int = 0
     private(set) var numberOfDidReceive: Int = 0
 
-    nonisolated func didPrepare(_ request: URLRequest) {
+    func didPrepare(_ request: URLRequest, with context: HTTP.Context) {
         numberOfDidPrepare += 1
     }
 
-    func didEncounter(_ transportError: any Error) {
+    func didEncounter(_ transportError: any Error, with context: HTTP.Context) {
         numberOfDidPrepare += 1
     }
 
-    func didReceive(_ response: HTTPURLResponse) {
+    func didReceive(_ response: HTTPURLResponse, with context: HTTP.Context) {
         numberOfDidReceive += 1
     }
 }

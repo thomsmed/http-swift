@@ -29,7 +29,7 @@ import HTTP
             )!)
         }
 
-        let result: Result<String, HTTP.PlainFailure> = await httpClient.request(
+        let result: Result<String, HTTP.Failure> = await httpClient.request(
             .post,
             at: url,
             requestBody: expectedResponseBody,
@@ -67,7 +67,7 @@ import HTTP
             )!)
         }
 
-        let result: Result<String, HTTP.PlainFailure> = await httpClient.request(
+        let result: Result<String, HTTP.Failure> = await httpClient.request(
             .post,
             at: url,
             requestBody: expectedResponseBody,
@@ -108,7 +108,7 @@ import HTTP
             )!)
         }
 
-        let result: Result<String, HTTP.PlainFailure> = await httpClient.request(
+        let result: Result<String, HTTP.Failure> = await httpClient.request(
             .post,
             at: url,
             requestBody: expectedResponseBody,

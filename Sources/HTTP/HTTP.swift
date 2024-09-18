@@ -12,20 +12,35 @@ public enum HTTP {
         case json = "application/json"
     }
 
-    public enum Failure<ErrorBody: Decodable & Sendable>: Error {
+    public enum Failure: Error {
+        public struct Response: Sendable {
+            private let decoder: JSONDecoder
+
+            public let statusCode: Int
+            public let body: Data
+
+            internal init(decoder: JSONDecoder, statusCode: Int, body: Data) {
+                self.decoder = decoder
+                self.statusCode = statusCode
+                self.body = body
+            }
+
+            public func bodyTyped<Value: Decodable>() throws -> Value {
+                try decoder.decode(Value.self, from: body)
+            }
+        }
+
         case encodingError(any Error)
         case decodingError(any Error)
         case preparationError(any Error)
         case processingError(any Error)
         case transportError(any Error)
-        case clientError(ErrorBody)
-        case serverError(ErrorBody)
-        case unexpectedStatusCode(Int)
+        case clientError(Response)
+        case serverError(Response)
+        case unexpectedStatusCode(Response)
         case maxRetryCountReached
         case canceled
     }
-
-    public typealias PlainFailure = Failure<Data>
 
     public struct Context {
         public let encoder: JSONEncoder

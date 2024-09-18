@@ -72,7 +72,7 @@ public extension HTTP {
 
         // MARK: Fetching
 
-        private func fetch<RequestBody: Encodable, ResponseBody: Decodable, ErrorBody: Decodable>(
+        private func fetch<RequestBody: Encodable, ResponseBody: Decodable>(
             _ method: HTTP.Method,
             at url: URL,
             requestBody: RequestBody,
@@ -81,7 +81,7 @@ public extension HTTP {
             emptyResponseStatusCodes: Set<Int>,
             interceptors: [HTTP.Interceptor],
             context: HTTP.Context
-        ) async -> FetchResult<ResponseBody?, HTTP.Failure<ErrorBody>>  {
+        ) async -> FetchResult<ResponseBody?, HTTP.Failure>  {
             var request = URLRequest(url: url)
             request.httpMethod = method.rawValue
 
@@ -185,32 +185,39 @@ public extension HTTP {
                     }
 
                 case 400..<500:
-                    do {
-                        return .failure(.clientError(try decoder.decode(ErrorBody.self, from: data)))
-                    } catch {
-                        return .failure(.decodingError(error))
-                    }
+                    let failureResponse = Failure.Response(
+                        decoder: decoder,
+                        statusCode: httpURLResponse.statusCode,
+                        body: data
+                    )
+                    return .failure(.clientError(failureResponse))
 
                 case 500..<600:
-                    do {
-                        return .failure(.serverError(try decoder.decode(ErrorBody.self, from: data)))
-                    } catch {
-                        return .failure(.decodingError(error))
-                    }
+                    let failureResponse = Failure.Response(
+                        decoder: decoder,
+                        statusCode: httpURLResponse.statusCode,
+                        body: data
+                    )
+                    return .failure(.serverError(failureResponse))
 
                 default:
-                    return .failure(.unexpectedStatusCode(httpURLResponse.statusCode))
+                    let failureResponse = Failure.Response(
+                        decoder: decoder,
+                        statusCode: httpURLResponse.statusCode,
+                        body: data
+                    )
+                    return .failure(.unexpectedStatusCode(failureResponse))
             }
         }
 
-        private func fetch<RequestBody: Encodable, ErrorBody: Decodable>(
+        private func fetch<RequestBody: Encodable>(
             _ method: HTTP.Method,
             at url: URL,
             requestBody: RequestBody,
             requestContentType: HTTP.MimeType,
             interceptors: [HTTP.Interceptor],
             context: HTTP.Context
-        ) async -> FetchResult<Void, HTTP.Failure<ErrorBody>> {
+        ) async -> FetchResult<Void, HTTP.Failure> {
             var request = URLRequest(url: url)
             request.httpMethod = method.rawValue
 
@@ -297,32 +304,39 @@ public extension HTTP {
                     return .success(())
 
                 case 400..<500:
-                    do {
-                        return .failure(.clientError(try decoder.decode(ErrorBody.self, from: data)))
-                    } catch {
-                        return .failure(.decodingError(error))
-                    }
+                    let failureResponse = Failure.Response(
+                        decoder: decoder,
+                        statusCode: httpURLResponse.statusCode,
+                        body: data
+                    )
+                    return .failure(.clientError(failureResponse))
 
                 case 500..<600:
-                    do {
-                        return .failure(.serverError(try decoder.decode(ErrorBody.self, from: data)))
-                    } catch {
-                        return .failure(.decodingError(error))
-                    }
+                    let failureResponse = Failure.Response(
+                        decoder: decoder,
+                        statusCode: httpURLResponse.statusCode,
+                        body: data
+                    )
+                    return .failure(.serverError(failureResponse))
 
                 default:
-                    return .failure(.unexpectedStatusCode(httpURLResponse.statusCode))
+                    let failureResponse = Failure.Response(
+                        decoder: decoder,
+                        statusCode: httpURLResponse.statusCode,
+                        body: data
+                    )
+                    return .failure(.unexpectedStatusCode(failureResponse))
             }
         }
 
-        private func fetch<ResponseBody: Decodable, ErrorBody: Decodable>(
+        private func fetch<ResponseBody: Decodable>(
             _ method: HTTP.Method,
             at url: URL,
             responseContentType: HTTP.MimeType,
             emptyResponseStatusCodes: Set<Int>,
             interceptors: [HTTP.Interceptor],
             context: HTTP.Context
-        ) async -> FetchResult<ResponseBody?, HTTP.Failure<ErrorBody>> {
+        ) async -> FetchResult<ResponseBody?, HTTP.Failure> {
             var request = URLRequest(url: url)
             request.httpMethod = method.rawValue
 
@@ -419,30 +433,37 @@ public extension HTTP {
                     }
 
                 case 400..<500:
-                    do {
-                        return .failure(.clientError(try decoder.decode(ErrorBody.self, from: data)))
-                    } catch {
-                        return .failure(.decodingError(error))
-                    }
+                    let failureResponse = Failure.Response(
+                        decoder: decoder,
+                        statusCode: httpURLResponse.statusCode,
+                        body: data
+                    )
+                    return .failure(.clientError(failureResponse))
 
                 case 500..<600:
-                    do {
-                        return .failure(.serverError(try decoder.decode(ErrorBody.self, from: data)))
-                    } catch {
-                        return .failure(.decodingError(error))
-                    }
+                    let failureResponse = Failure.Response(
+                        decoder: decoder,
+                        statusCode: httpURLResponse.statusCode,
+                        body: data
+                    )
+                    return .failure(.serverError(failureResponse))
 
                 default:
-                    return .failure(.unexpectedStatusCode(httpURLResponse.statusCode))
+                    let failureResponse = Failure.Response(
+                        decoder: decoder,
+                        statusCode: httpURLResponse.statusCode,
+                        body: data
+                    )
+                    return .failure(.unexpectedStatusCode(failureResponse))
             }
         }
 
-        private func fetch<ErrorBody: Decodable>(
+        private func fetch(
             _ method: HTTP.Method,
             at url: URL,
             interceptors: [HTTP.Interceptor],
             context: HTTP.Context
-        ) async -> FetchResult<Void, HTTP.Failure<ErrorBody>> {
+        ) async -> FetchResult<Void, HTTP.Failure> {
             var request = URLRequest(url: url)
             request.httpMethod = method.rawValue
 
@@ -521,21 +542,28 @@ public extension HTTP {
                     return .success(())
 
                 case 400..<500:
-                    do {
-                        return .failure(.clientError(try decoder.decode(ErrorBody.self, from: data)))
-                    } catch {
-                        return .failure(.decodingError(error))
-                    }
+                    let failureResponse = Failure.Response(
+                        decoder: decoder,
+                        statusCode: httpURLResponse.statusCode,
+                        body: data
+                    )
+                    return .failure(.clientError(failureResponse))
 
                 case 500..<600:
-                    do {
-                        return .failure(.serverError(try decoder.decode(ErrorBody.self, from: data)))
-                    } catch {
-                        return .failure(.decodingError(error))
-                    }
+                    let failureResponse = Failure.Response(
+                        decoder: decoder,
+                        statusCode: httpURLResponse.statusCode,
+                        body: data
+                    )
+                    return .failure(.serverError(failureResponse))
 
                 default:
-                    return .failure(.unexpectedStatusCode(httpURLResponse.statusCode))
+                    let failureResponse = Failure.Response(
+                        decoder: decoder,
+                        statusCode: httpURLResponse.statusCode,
+                        body: data
+                    )
+                    return .failure(.unexpectedStatusCode(failureResponse))
             }
         }
     }
@@ -544,7 +572,7 @@ public extension HTTP {
 // MARK: Handling HTTP.Client.FetchResult
 
 private extension HTTP.Client {
-    private func request<RequestBody: Encodable, ResponseBody: Decodable, ErrorBody: Decodable>(
+    private func request<RequestBody: Encodable, ResponseBody: Decodable>(
         _ method: HTTP.Method,
         at url: URL,
         requestBody: RequestBody,
@@ -553,8 +581,8 @@ private extension HTTP.Client {
         emptyResponseStatusCodes: Set<Int>,
         interceptors: [HTTP.Interceptor],
         context: HTTP.Context
-    ) async -> Result<ResponseBody?, HTTP.Failure<ErrorBody>> {
-        let result: FetchResult<ResponseBody?, HTTP.Failure<ErrorBody>> = await fetch(
+    ) async -> Result<ResponseBody?, HTTP.Failure> {
+        let result: FetchResult<ResponseBody?, HTTP.Failure> = await fetch(
             method,
             at: url,
             requestBody: requestBody,
@@ -625,15 +653,15 @@ private extension HTTP.Client {
         }
     }
 
-    private func request<RequestBody: Encodable, ErrorBody: Decodable>(
+    private func request<RequestBody: Encodable>(
         _ method: HTTP.Method,
         at url: URL,
         requestBody: RequestBody,
         requestContentType: HTTP.MimeType,
         interceptors: [HTTP.Interceptor],
         context: HTTP.Context
-    ) async -> Result<Void, HTTP.Failure<ErrorBody>> {
-        let result: FetchResult<Void, HTTP.Failure<ErrorBody>> = await fetch(
+    ) async -> Result<Void, HTTP.Failure> {
+        let result: FetchResult<Void, HTTP.Failure> = await fetch(
             method,
             at: url,
             requestBody: requestBody,
@@ -698,15 +726,15 @@ private extension HTTP.Client {
         }
     }
 
-    private func request<ResponseBody: Decodable, ErrorBody: Decodable>(
+    private func request<ResponseBody: Decodable>(
         _ method: HTTP.Method,
         at url: URL,
         responseContentType: HTTP.MimeType,
         emptyResponseStatusCodes: Set<Int>,
         interceptors: [HTTP.Interceptor],
         context: HTTP.Context
-    ) async -> Result<ResponseBody?, HTTP.Failure<ErrorBody>> {
-        let result: FetchResult<ResponseBody?, HTTP.Failure<ErrorBody>> = await fetch(
+    ) async -> Result<ResponseBody?, HTTP.Failure> {
+        let result: FetchResult<ResponseBody?, HTTP.Failure> = await fetch(
             method,
             at: url,
             responseContentType: responseContentType,
@@ -771,13 +799,13 @@ private extension HTTP.Client {
         }
     }
 
-    private func request<ErrorBody: Decodable>(
+    private func request(
         _ method: HTTP.Method,
         at url: URL,
         interceptors: [HTTP.Interceptor],
         context: HTTP.Context
-    ) async -> Result<Void, HTTP.Failure<ErrorBody>> {
-        let result: FetchResult<Void, HTTP.Failure<ErrorBody>> = await fetch(
+    ) async -> Result<Void, HTTP.Failure> {
+        let result: FetchResult<Void, HTTP.Failure> = await fetch(
             method,
             at: url,
             interceptors: interceptors,
@@ -840,7 +868,7 @@ private extension HTTP.Client {
 // MARK: Public Methods
 
 public extension HTTP.Client {
-    func request<RequestBody: Encodable, ResponseBody: Decodable, ErrorBody: Decodable>(
+    func request<RequestBody: Encodable, ResponseBody: Decodable>(
         _ method: HTTP.Method,
         at url: URL,
         requestBody: RequestBody,
@@ -848,7 +876,7 @@ public extension HTTP.Client {
         responseContentType: HTTP.MimeType,
         emptyResponseStatusCodes: Set<Int>,
         interceptors: [HTTP.Interceptor]
-    ) async -> Result<ResponseBody?, HTTP.Failure<ErrorBody>> {
+    ) async -> Result<ResponseBody?, HTTP.Failure> {
         // Apply per-request interceptors last,
         // having per-request interceptors prepare outgoing requests after per-client interceptors.
         // And having per-request interceptors process incoming responses before per-client interceptors.
@@ -872,14 +900,14 @@ public extension HTTP.Client {
         )
     }
 
-    func request<RequestBody: Encodable, ResponseBody: Decodable, ErrorBody: Decodable>(
+    func request<RequestBody: Encodable, ResponseBody: Decodable>(
         _ method: HTTP.Method,
         at url: URL,
         requestBody: RequestBody,
         requestContentType: HTTP.MimeType,
         responseContentType: HTTP.MimeType,
         interceptors: [HTTP.Interceptor]
-    ) async -> Result<ResponseBody, HTTP.Failure<ErrorBody>> {
+    ) async -> Result<ResponseBody, HTTP.Failure> {
         // Apply per-request interceptors last,
         // having per-request interceptors prepare outgoing requests after per-client interceptors.
         // And having per-request interceptors process incoming responses before per-client interceptors.
@@ -891,7 +919,7 @@ public extension HTTP.Client {
             retryCount: 0
         )
 
-        let result: Result<ResponseBody?, HTTP.Failure<ErrorBody>> = await request(
+        let result: Result<ResponseBody?, HTTP.Failure> = await request(
             method,
             at: url,
             requestBody: requestBody,
@@ -914,13 +942,13 @@ public extension HTTP.Client {
         }
     }
 
-    func request<RequestBody: Encodable, ErrorBody: Decodable>(
+    func request<RequestBody: Encodable>(
         _ method: HTTP.Method,
         at url: URL,
         requestBody: RequestBody,
         requestContentType: HTTP.MimeType,
         interceptors: [HTTP.Interceptor]
-    ) async -> Result<Void, HTTP.Failure<ErrorBody>> {
+    ) async -> Result<Void, HTTP.Failure> {
         // Apply per-request interceptors last,
         // having per-request interceptors prepare outgoing requests after per-client interceptors.
         // And having per-request interceptors process incoming responses before per-client interceptors.
@@ -942,13 +970,13 @@ public extension HTTP.Client {
         )
     }
 
-    func request<ResponseBody: Decodable, ErrorBody: Decodable>(
+    func request<ResponseBody: Decodable>(
         _ method: HTTP.Method,
         at url: URL,
         responseContentType: HTTP.MimeType,
         emptyResponseStatusCodes: Set<Int>,
         interceptors: [HTTP.Interceptor]
-    ) async -> Result<ResponseBody?, HTTP.Failure<ErrorBody>> {
+    ) async -> Result<ResponseBody?, HTTP.Failure> {
         // Apply per-request interceptors last,
         // having per-request interceptors prepare outgoing requests after per-client interceptors.
         // And having per-request interceptors process incoming responses before per-client interceptors.
@@ -970,12 +998,12 @@ public extension HTTP.Client {
         )
     }
 
-    func request<ResponseBody: Decodable, ErrorBody: Decodable>(
+    func request<ResponseBody: Decodable>(
         _ method: HTTP.Method,
         at url: URL,
         responseContentType: HTTP.MimeType,
         interceptors: [HTTP.Interceptor]
-    ) async -> Result<ResponseBody, HTTP.Failure<ErrorBody>> {
+    ) async -> Result<ResponseBody, HTTP.Failure> {
         // Apply per-request interceptors last,
         // having per-request interceptors prepare outgoing requests after per-client interceptors.
         // And having per-request interceptors process incoming responses before per-client interceptors.
@@ -987,7 +1015,7 @@ public extension HTTP.Client {
             retryCount: 0
         )
 
-        let result: Result<ResponseBody?, HTTP.Failure<ErrorBody>> = await request(
+        let result: Result<ResponseBody?, HTTP.Failure> = await request(
             method,
             at: url,
             responseContentType: responseContentType,
@@ -1008,11 +1036,11 @@ public extension HTTP.Client {
         }
     }
 
-    func request<ErrorBody: Decodable>(
+    func request(
         _ method: HTTP.Method,
         at url: URL,
         interceptors: [HTTP.Interceptor]
-    ) async -> Result<Void, HTTP.Failure<ErrorBody>> {
+    ) async -> Result<Void, HTTP.Failure> {
         // Apply per-request interceptors last,
         // having per-request interceptors prepare outgoing requests after per-client interceptors.
         // And having per-request interceptors process incoming responses before per-client interceptors.

@@ -29,7 +29,7 @@ struct Response {
     /* ... */
 }
 
-let result: Result<Response, HTTP.Failure<Data>> = await httpClient.request(
+let result: Result<Response, HTTP.Failure> = await httpClient.request(
     .get,
     at: URL(string: "https://example.ios")!,
     responseContentType: .json,
@@ -38,13 +38,34 @@ let result: Result<Response, HTTP.Failure<Data>> = await httpClient.request(
 
 // Optionally specify response status codes that yield empty responses
 
-let result: Result<Response?, HTTP.Failure<Data>> = await httpClient.request(
+let result: Result<Response?, HTTP.Failure> = await httpClient.request(
     .get,
     at: url,
     responseContentType: .json,
     emptyResponseStatusCodes: [204],
     interceptors: []
 )
+
+struct OneTypeOfErrorBody: Decodable {
+    let message: String
+}
+
+struct AnotherTypeOfErrorBody: Decodable {
+    let code: Int
+}
+
+switch result {
+    case .success:
+        break
+    case .failure(.clientError(let errorResponse)):
+        if let errorBody = try? errorResponse.decode() as OneTypeOfErrorBody {
+            // ...
+        } else if let errorBody = try? errorResponse.decode() as AnotherTypeOfErrorBody {
+            // ...
+        } else {
+            // ...
+        }
+}
 ```
 
 ## Intercept (and retry)
@@ -89,7 +110,7 @@ let httpClient = HTTP.Client(
     ]
 )
 
-let result: Result<Void, HTTP.Failure<Data>> = await httpClient.request(
+let result: Result<Void, HTTP.Failure> = await httpClient.request(
     .get,
     at: URL(string: "https://example.ios")!,
     interceptors: []
@@ -119,7 +140,7 @@ let httpClient = HTTP.Client(
     ]
 )
 
-let result: Result<Void, HTTP.Failure<Data>> = await httpClient.request(
+let result: Result<Void, HTTP.Failure> = await httpClient.request(
     .get,
     at: URL(string: "https://example.ios")!,
     interceptors: []

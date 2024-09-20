@@ -176,7 +176,7 @@ import HTTP
                 case let httpFailure as HTTP.Failure:
                     switch httpFailure {
                         case let .clientError(response):
-                            return try response.bodyTyped() == expectedErrorBody
+                            return try response.decode() == expectedErrorBody
                         default:
                             return false
                     }

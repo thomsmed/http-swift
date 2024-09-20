@@ -25,8 +25,8 @@ public enum HTTP {
                 self.body = body
             }
 
-            public func bodyTyped<Value: Decodable>() throws -> Value {
-                try decoder.decode(Value.self, from: body)
+            public func decode<T: Decodable>() throws -> T {
+                try decoder.decode(T.self, from: body)
             }
         }
 

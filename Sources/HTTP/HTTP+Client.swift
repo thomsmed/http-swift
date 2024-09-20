@@ -65,7 +65,7 @@ public extension HTTP {
         private func decode<ResponseBody: Decodable>(
             _ responseData: Data,
             as responseContentType: MimeType
-        ) throws ->  ResponseBody {
+        ) throws -> ResponseBody {
             switch responseContentType {
                 case .json:
                     return try decoder.decode(ResponseBody.self, from: responseData)
@@ -83,7 +83,7 @@ public extension HTTP {
             emptyResponseStatusCodes: Set<Int>,
             interceptors: [HTTP.Interceptor],
             context: HTTP.Context
-        ) async -> FetchResult  {
+        ) async -> FetchResult {
             var request = URLRequest(url: url)
             request.httpMethod = method.rawValue
 

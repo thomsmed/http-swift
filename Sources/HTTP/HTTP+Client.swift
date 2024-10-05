@@ -2,8 +2,6 @@ import Foundation
 
 public extension HTTP {
     final class Client: Sendable {
-        private struct EmptyRequest: Encodable {}
-
         private enum FetchResult {
             case success(Data?, Int)
             case retry
@@ -74,10 +72,10 @@ public extension HTTP {
 
         // MARK: Fetching
 
-        private func fetch<RequestBody: Encodable>(
+        private func fetch(
             _ method: HTTP.Method,
             at url: URL,
-            requestBody: RequestBody,
+            requestData: Data,
             requestContentType: HTTP.MimeType?,
             responseContentType: HTTP.MimeType?,
             emptyResponseStatusCodes: Set<Int>,
@@ -89,12 +87,7 @@ public extension HTTP {
 
             if let requestContentType {
                 request.setValue(requestContentType.rawValue, forHTTPHeaderField: "Content-Type")
-
-                do {
-                    request.httpBody = try encode(requestBody, as: requestContentType)
-                } catch {
-                    return .failure(.encodingError(error))
-                }
+                request.httpBody = requestData
             }
 
             if let responseContentType {
@@ -210,10 +203,10 @@ public extension HTTP {
 // MARK: Handling HTTP.Client.FetchResult
 
 private extension HTTP.Client {
-    private func request<RequestBody: Encodable>(
+    private func request(
         _ method: HTTP.Method,
         at url: URL,
-        requestBody: RequestBody,
+        requestData: Data,
         requestContentType: HTTP.MimeType?,
         responseContentType: HTTP.MimeType,
         emptyResponseStatusCodes: Set<Int>,
@@ -223,7 +216,7 @@ private extension HTTP.Client {
         let result = await fetch(
             method,
             at: url,
-            requestBody: requestBody,
+            requestData: requestData,
             requestContentType: requestContentType,
             responseContentType: responseContentType,
             emptyResponseStatusCodes: emptyResponseStatusCodes,
@@ -253,7 +246,7 @@ private extension HTTP.Client {
                 return await request(
                     method,
                     at: url,
-                    requestBody: requestBody,
+                    requestData: requestData,
                     requestContentType: requestContentType,
                     responseContentType: responseContentType,
                     emptyResponseStatusCodes: emptyResponseStatusCodes,
@@ -281,7 +274,7 @@ private extension HTTP.Client {
                 return await request(
                     method,
                     at: url,
-                    requestBody: requestBody,
+                    requestData: requestData,
                     requestContentType: requestContentType,
                     responseContentType: responseContentType,
                     emptyResponseStatusCodes: emptyResponseStatusCodes,
@@ -291,10 +284,10 @@ private extension HTTP.Client {
         }
     }
 
-    private func request<RequestBody: Encodable>(
+    private func request(
         _ method: HTTP.Method,
         at url: URL,
-        requestBody: RequestBody,
+        requestData: Data,
         requestContentType: HTTP.MimeType?,
         responseContentType: HTTP.MimeType,
         interceptors: [HTTP.Interceptor],
@@ -303,7 +296,7 @@ private extension HTTP.Client {
         let result = await fetch(
             method,
             at: url,
-            requestBody: requestBody,
+            requestData: requestData,
             requestContentType: requestContentType,
             responseContentType: responseContentType,
             emptyResponseStatusCodes: [],
@@ -337,7 +330,7 @@ private extension HTTP.Client {
                 return await request(
                     method,
                     at: url,
-                    requestBody: requestBody,
+                    requestData: requestData,
                     requestContentType: requestContentType,
                     responseContentType: responseContentType,
                     interceptors: interceptors,
@@ -364,7 +357,7 @@ private extension HTTP.Client {
                 return await request(
                     method,
                     at: url,
-                    requestBody: requestBody,
+                    requestData: requestData,
                     requestContentType: requestContentType,
                     responseContentType: responseContentType,
                     interceptors: interceptors,
@@ -373,10 +366,10 @@ private extension HTTP.Client {
         }
     }
 
-    private func request<RequestBody: Encodable>(
+    private func request(
         _ method: HTTP.Method,
         at url: URL,
-        requestBody: RequestBody,
+        requestData: Data,
         requestContentType: HTTP.MimeType?,
         interceptors: [HTTP.Interceptor],
         context: HTTP.Context
@@ -384,7 +377,7 @@ private extension HTTP.Client {
         let result = await fetch(
             method,
             at: url,
-            requestBody: requestBody,
+            requestData: requestData,
             requestContentType: requestContentType,
             responseContentType: nil,
             emptyResponseStatusCodes: [],
@@ -414,7 +407,7 @@ private extension HTTP.Client {
                 return await request(
                     method,
                     at: url,
-                    requestBody: requestBody,
+                    requestData: requestData,
                     requestContentType: requestContentType,
                     interceptors: interceptors,
                     context: context
@@ -440,7 +433,7 @@ private extension HTTP.Client {
                 return await request(
                     method,
                     at: url,
-                    requestBody: requestBody,
+                    requestData: requestData,
                     requestContentType: requestContentType,
                     interceptors: interceptors,
                     context: context
@@ -472,10 +465,17 @@ public extension HTTP.Client {
             retryCount: 0
         )
 
+        let requestData: Data
+        do {
+            requestData = try encode(requestBody, as: requestContentType)
+        } catch {
+            return .failure(.encodingError(error))
+        }
+
         switch await request(
             method,
             at: url,
-            requestBody: requestBody,
+            requestData: requestData,
             requestContentType: requestContentType,
             responseContentType: responseContentType,
             emptyResponseStatusCodes: emptyResponseStatusCodes,
@@ -519,10 +519,17 @@ public extension HTTP.Client {
             retryCount: 0
         )
 
+        let requestData: Data
+        do {
+            requestData = try encode(requestBody, as: requestContentType)
+        } catch {
+            return .failure(.encodingError(error))
+        }
+
         switch await request(
             method,
             at: url,
-            requestBody: requestBody,
+            requestData: requestData,
             requestContentType: requestContentType,
             responseContentType: responseContentType,
             interceptors: interceptors,
@@ -560,10 +567,17 @@ public extension HTTP.Client {
             retryCount: 0
         )
 
+        let requestData: Data
+        do {
+            requestData = try encode(requestBody, as: requestContentType)
+        } catch {
+            return .failure(.encodingError(error))
+        }
+
         return await request(
             method,
             at: url,
-            requestBody: requestBody,
+            requestData: requestData,
             requestContentType: requestContentType,
             interceptors: interceptors,
             context: context
@@ -591,7 +605,7 @@ public extension HTTP.Client {
         switch await request(
             method,
             at: url,
-            requestBody: EmptyRequest(),
+            requestData: Data(),
             requestContentType: nil,
             responseContentType: responseContentType,
             emptyResponseStatusCodes: emptyResponseStatusCodes,
@@ -636,7 +650,7 @@ public extension HTTP.Client {
         switch await request(
             method,
             at: url,
-            requestBody: EmptyRequest(),
+            requestData: Data(),
             requestContentType: nil,
             responseContentType: responseContentType,
             interceptors: interceptors,
@@ -675,7 +689,7 @@ public extension HTTP.Client {
         return await request(
             method,
             at: url,
-            requestBody: EmptyRequest(),
+            requestData: Data(),
             requestContentType: nil,
             interceptors: interceptors,
             context: context

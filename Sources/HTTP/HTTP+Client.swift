@@ -65,7 +65,7 @@ public extension HTTP {
         private func fetch(
             _ method: HTTP.Method,
             at url: URL,
-            requestData: Data,
+            requestData: Data?,
             requestContentType: HTTP.MimeType?,
             responseContentType: HTTP.MimeType?,
             emptyResponseStatusCodes: Set<Int>,
@@ -183,7 +183,7 @@ private extension HTTP.Client {
     private func request(
         _ method: HTTP.Method,
         at url: URL,
-        requestData: Data,
+        requestData: Data?,
         requestContentType: HTTP.MimeType?,
         responseContentType: HTTP.MimeType,
         emptyResponseStatusCodes: Set<Int>,
@@ -264,7 +264,7 @@ private extension HTTP.Client {
     private func request(
         _ method: HTTP.Method,
         at url: URL,
-        requestData: Data,
+        requestData: Data?,
         requestContentType: HTTP.MimeType?,
         responseContentType: HTTP.MimeType,
         interceptors: [HTTP.Interceptor],
@@ -342,7 +342,7 @@ private extension HTTP.Client {
     private func request(
         _ method: HTTP.Method,
         at url: URL,
-        requestData: Data,
+        requestData: Data?,
         requestContentType: HTTP.MimeType?,
         interceptors: [HTTP.Interceptor],
         context: HTTP.Context
@@ -415,17 +415,18 @@ private extension HTTP.Client {
     }
 }
 
-// MARK: Public Methods
+// MARK: Making Requests
 
 public extension HTTP.Client {
-    func request<RequestBody: Encodable, ResponseBody: Decodable>(
+    func request<ResponseBody>(
         _ method: HTTP.Method,
         at url: URL,
-        requestBody: RequestBody,
+        requestBody: any Encodable,
         requestContentType: HTTP.MimeType,
         responseContentType: HTTP.MimeType,
         emptyResponseStatusCodes: Set<Int>,
-        interceptors: [HTTP.Interceptor]
+        interceptors: [HTTP.Interceptor] = [],
+        adapt: @escaping (HTTP.Response) throws -> ResponseBody?
     ) async -> Result<ResponseBody?, HTTP.Failure> {
         // Apply per-request interceptors last,
         // having per-request interceptors prepare outgoing requests after per-client interceptors.
@@ -461,9 +462,7 @@ public extension HTTP.Client {
                 }
 
                 do {
-                    // Decode data as non-optional ResponseBody
-                    let response: ResponseBody = try response.decode(as: responseContentType)
-                    return .success(response)
+                    return .success(try adapt(response))
                 } catch {
                     return .failure(.decodingError(error))
                 }
@@ -471,143 +470,40 @@ public extension HTTP.Client {
             case .failure(let failure):
                 return .failure(failure)
         }
-    }
-
-    func request<RequestBody: Encodable, ResponseBody: Decodable>(
-        _ method: HTTP.Method,
-        at url: URL,
-        requestBody: RequestBody,
-        requestContentType: HTTP.MimeType,
-        responseContentType: HTTP.MimeType,
-        interceptors: [HTTP.Interceptor]
-    ) async -> Result<ResponseBody, HTTP.Failure> {
-        // Apply per-request interceptors last,
-        // having per-request interceptors prepare outgoing requests after per-client interceptors.
-        // And having per-request interceptors process incoming responses before per-client interceptors.
-        let interceptors = self.interceptors + interceptors
-
-        let context = HTTP.Context(
-            encoder: encoder,
-            decoder: decoder,
-            retryCount: 0
-        )
-
-        let requestData: Data
-        do {
-            requestData = try encode(requestBody, as: requestContentType)
-        } catch {
-            return .failure(.encodingError(error))
-        }
-
-        switch await request(
-            method,
-            at: url,
-            requestData: requestData,
-            requestContentType: requestContentType,
-            responseContentType: responseContentType,
-            interceptors: interceptors,
-            context: context
-        ) {
-            case .success(let response):
-                do {
-                    // Decode data as non-optional ResponseBody
-                    let response: ResponseBody = try response.decode(as: responseContentType)
-                    return .success(response)
-                } catch {
-                    return .failure(.decodingError(error))
-                }
-
-            case .failure(let failure):
-                return .failure(failure)
-        }
-    }
-
-    func request<RequestBody: Encodable>(
-        _ method: HTTP.Method,
-        at url: URL,
-        requestBody: RequestBody,
-        requestContentType: HTTP.MimeType,
-        interceptors: [HTTP.Interceptor]
-    ) async -> Result<Void, HTTP.Failure> {
-        // Apply per-request interceptors last,
-        // having per-request interceptors prepare outgoing requests after per-client interceptors.
-        // And having per-request interceptors process incoming responses before per-client interceptors.
-        let interceptors = self.interceptors + interceptors
-
-        let context = HTTP.Context(
-            encoder: encoder,
-            decoder: decoder,
-            retryCount: 0
-        )
-
-        let requestData: Data
-        do {
-            requestData = try encode(requestBody, as: requestContentType)
-        } catch {
-            return .failure(.encodingError(error))
-        }
-
-        return await request(
-            method,
-            at: url,
-            requestData: requestData,
-            requestContentType: requestContentType,
-            interceptors: interceptors,
-            context: context
-        )
     }
 
     func request<ResponseBody: Decodable>(
         _ method: HTTP.Method,
         at url: URL,
+        requestBody: any Encodable,
+        requestContentType: HTTP.MimeType,
         responseContentType: HTTP.MimeType,
         emptyResponseStatusCodes: Set<Int>,
-        interceptors: [HTTP.Interceptor]
+        interceptors: [HTTP.Interceptor] = [],
+        adapt: ((HTTP.Response) throws -> ResponseBody?)? = nil
     ) async -> Result<ResponseBody?, HTTP.Failure> {
-        // Apply per-request interceptors last,
-        // having per-request interceptors prepare outgoing requests after per-client interceptors.
-        // And having per-request interceptors process incoming responses before per-client interceptors.
-        let interceptors = self.interceptors + interceptors
-
-        let context = HTTP.Context(
-            encoder: encoder,
-            decoder: decoder,
-            retryCount: 0
-        )
-
-        switch await request(
+        await request(
             method,
             at: url,
-            requestData: Data(),
-            requestContentType: nil,
+            requestBody: requestBody,
+            requestContentType: requestContentType,
             responseContentType: responseContentType,
             emptyResponseStatusCodes: emptyResponseStatusCodes,
             interceptors: interceptors,
-            context: context
-        ) {
-            case .success(let response):
-                if emptyResponseStatusCodes.contains(response.statusCode) {
-                    return .success(nil)
-                }
-
-                do {
-                    // Decode data as non-optional ResponseBody
-                    let response: ResponseBody = try response.decode(as: responseContentType)
-                    return .success(response)
-                } catch {
-                    return .failure(.decodingError(error))
-                }
-
-            case .failure(let failure):
-                return .failure(failure)
-        }
+            adapt: adapt ?? { response in
+                try response.decode(as: responseContentType) as ResponseBody
+            }
+        )
     }
 
-    func request<ResponseBody: Decodable>(
+    func request<ResponseBody>(
         _ method: HTTP.Method,
         at url: URL,
+        requestBody: any Encodable,
+        requestContentType: HTTP.MimeType,
         responseContentType: HTTP.MimeType,
-        interceptors: [HTTP.Interceptor]
+        interceptors: [HTTP.Interceptor] = [],
+        adapt: @escaping (HTTP.Response) throws -> ResponseBody
     ) async -> Result<ResponseBody, HTTP.Failure> {
         // Apply per-request interceptors last,
         // having per-request interceptors prepare outgoing requests after per-client interceptors.
@@ -620,20 +516,25 @@ public extension HTTP.Client {
             retryCount: 0
         )
 
+        let requestData: Data
+        do {
+            requestData = try encode(requestBody, as: requestContentType)
+        } catch {
+            return .failure(.encodingError(error))
+        }
+
         switch await request(
             method,
             at: url,
-            requestData: Data(),
-            requestContentType: nil,
+            requestData: requestData,
+            requestContentType: requestContentType,
             responseContentType: responseContentType,
             interceptors: interceptors,
             context: context
         ) {
             case .success(let response):
                 do {
-                    // Decode data as non-optional ResponseBody
-                    let response: ResponseBody = try response.decode(as: responseContentType)
-                    return .success(response)
+                    return .success(try adapt(response))
                 } catch {
                     return .failure(.decodingError(error))
                 }
@@ -641,12 +542,191 @@ public extension HTTP.Client {
             case .failure(let failure):
                 return .failure(failure)
         }
+    }
+
+    func request<ResponseBody: Decodable>(
+        _ method: HTTP.Method,
+        at url: URL,
+        requestBody: any Encodable,
+        requestContentType: HTTP.MimeType,
+        responseContentType: HTTP.MimeType,
+        interceptors: [HTTP.Interceptor] = [],
+        adapt: ((HTTP.Response) throws -> ResponseBody)? = nil
+    ) async -> Result<ResponseBody, HTTP.Failure> {
+        await request(
+            method,
+            at: url,
+            requestBody: requestBody,
+            requestContentType: requestContentType,
+            responseContentType: responseContentType,
+            interceptors: interceptors,
+            adapt: adapt ?? { response in
+                try response.decode(as: responseContentType) as ResponseBody
+            }
+        )
     }
 
     func request(
         _ method: HTTP.Method,
         at url: URL,
-        interceptors: [HTTP.Interceptor]
+        requestBody: any Encodable,
+        requestContentType: HTTP.MimeType,
+        interceptors: [HTTP.Interceptor] = []
+    ) async -> Result<Void, HTTP.Failure> {
+        // Apply per-request interceptors last,
+        // having per-request interceptors prepare outgoing requests after per-client interceptors.
+        // And having per-request interceptors process incoming responses before per-client interceptors.
+        let interceptors = self.interceptors + interceptors
+
+        let context = HTTP.Context(
+            encoder: encoder,
+            decoder: decoder,
+            retryCount: 0
+        )
+
+        let requestData: Data
+        do {
+            requestData = try encode(requestBody, as: requestContentType)
+        } catch {
+            return .failure(.encodingError(error))
+        }
+
+        return await request(
+            method,
+            at: url,
+            requestData: requestData,
+            requestContentType: requestContentType,
+            interceptors: interceptors,
+            context: context
+        )
+    }
+
+    func request<ResponseBody>(
+        _ method: HTTP.Method,
+        at url: URL,
+        responseContentType: HTTP.MimeType,
+        emptyResponseStatusCodes: Set<Int>,
+        interceptors: [HTTP.Interceptor] = [],
+        adapt: @escaping (HTTP.Response) throws -> ResponseBody?
+    ) async -> Result<ResponseBody?, HTTP.Failure> {
+        // Apply per-request interceptors last,
+        // having per-request interceptors prepare outgoing requests after per-client interceptors.
+        // And having per-request interceptors process incoming responses before per-client interceptors.
+        let interceptors = self.interceptors + interceptors
+
+        let context = HTTP.Context(
+            encoder: encoder,
+            decoder: decoder,
+            retryCount: 0
+        )
+
+        switch await request(
+            method,
+            at: url,
+            requestData: nil,
+            requestContentType: nil,
+            responseContentType: responseContentType,
+            emptyResponseStatusCodes: emptyResponseStatusCodes,
+            interceptors: interceptors,
+            context: context
+        ) {
+            case .success(let response):
+                if emptyResponseStatusCodes.contains(response.statusCode) {
+                    return .success(nil)
+                }
+
+                do {
+                    return .success(try adapt(response))
+                } catch {
+                    return .failure(.decodingError(error))
+                }
+
+            case .failure(let failure):
+                return .failure(failure)
+        }
+    }
+
+    func request<ResponseBody: Decodable>(
+        _ method: HTTP.Method,
+        at url: URL,
+        responseContentType: HTTP.MimeType,
+        emptyResponseStatusCodes: Set<Int>,
+        interceptors: [HTTP.Interceptor] = [],
+        adapt: ((HTTP.Response) throws -> ResponseBody?)? = nil
+    ) async -> Result<ResponseBody?, HTTP.Failure> {
+        await request(
+            method,
+            at: url,
+            responseContentType: responseContentType,
+            emptyResponseStatusCodes: emptyResponseStatusCodes,
+            interceptors: interceptors,
+            adapt: adapt ?? { response in
+                try response.decode(as: responseContentType) as ResponseBody
+            }
+        )
+    }
+
+    func request<ResponseBody>(
+        _ method: HTTP.Method,
+        at url: URL,
+        responseContentType: HTTP.MimeType,
+        interceptors: [HTTP.Interceptor] = [],
+        adapt: @escaping (HTTP.Response) throws -> ResponseBody
+    ) async -> Result<ResponseBody, HTTP.Failure> {
+        // Apply per-request interceptors last,
+        // having per-request interceptors prepare outgoing requests after per-client interceptors.
+        // And having per-request interceptors process incoming responses before per-client interceptors.
+        let interceptors = self.interceptors + interceptors
+
+        let context = HTTP.Context(
+            encoder: encoder,
+            decoder: decoder,
+            retryCount: 0
+        )
+
+        switch await request(
+            method,
+            at: url,
+            requestData: nil,
+            requestContentType: nil,
+            responseContentType: responseContentType,
+            interceptors: interceptors,
+            context: context
+        ) {
+            case .success(let response):
+                do {
+                    return .success(try adapt(response))
+                } catch {
+                    return .failure(.decodingError(error))
+                }
+
+            case .failure(let failure):
+                return .failure(failure)
+        }
+    }
+
+    func request<ResponseBody: Decodable>(
+        _ method: HTTP.Method,
+        at url: URL,
+        responseContentType: HTTP.MimeType,
+        interceptors: [HTTP.Interceptor] = [],
+        adapt: ((HTTP.Response) throws -> ResponseBody)? = nil
+    ) async -> Result<ResponseBody, HTTP.Failure> {
+        await request(
+            method,
+            at: url,
+            responseContentType: responseContentType,
+            interceptors: interceptors,
+            adapt: adapt ?? { response in
+                try response.decode(as: responseContentType) as ResponseBody
+            }
+        )
+    }
+
+    func request(
+        _ method: HTTP.Method,
+        at url: URL,
+        interceptors: [HTTP.Interceptor] = []
     ) async -> Result<Void, HTTP.Failure> {
         // Apply per-request interceptors last,
         // having per-request interceptors prepare outgoing requests after per-client interceptors.
@@ -662,10 +742,327 @@ public extension HTTP.Client {
         return await request(
             method,
             at: url,
-            requestData: Data(),
+            requestData: nil,
             requestContentType: nil,
             interceptors: interceptors,
             context: context
         )
+    }
+}
+
+// MARK: Calling Endpoints
+
+public extension HTTP {
+    struct Endpoint<Resource> {
+        public let method: HTTP.Method
+        public let url: URL
+        public let requestBody: (any Encodable)?
+        public let requestContentType: HTTP.MimeType?
+        public let responseContentType: HTTP.MimeType?
+        public let emptyResponseStatusCodes: Set<Int>
+        public let interceptors: [HTTP.Interceptor]
+        public let adapt: (HTTP.Response) throws -> Resource
+
+        public init(
+            _ method: HTTP.Method,
+            at url: URL,
+            requestBody: any Encodable,
+            requestContentType: HTTP.MimeType,
+            responseContentType: HTTP.MimeType,
+            emptyResponseStatusCodes: Set<Int>,
+            interceptors: [HTTP.Interceptor] = [],
+            adapt: ((HTTP.Response) throws -> Resource)? = nil
+        ) where Resource == Optional<Decodable> {
+            self.method = method
+            self.url = url
+            self.requestBody = requestBody
+            self.requestContentType = requestContentType
+            self.responseContentType = responseContentType
+            self.emptyResponseStatusCodes = emptyResponseStatusCodes
+            self.interceptors = interceptors
+            self.adapt = adapt ?? { _ in Optional<Decodable>(nil) }
+        }
+
+        public init(
+            _ method: HTTP.Method,
+            at url: URL,
+            requestBody: any Encodable,
+            requestContentType: HTTP.MimeType,
+            responseContentType: HTTP.MimeType,
+            emptyResponseStatusCodes: Set<Int>,
+            interceptors: [HTTP.Interceptor] = [],
+            adapt: @escaping (HTTP.Response) throws -> Resource
+        ) {
+            self.method = method
+            self.url = url
+            self.requestBody = requestBody
+            self.requestContentType = requestContentType
+            self.responseContentType = responseContentType
+            self.emptyResponseStatusCodes = emptyResponseStatusCodes
+            self.interceptors = interceptors
+            self.adapt = adapt
+        }
+
+        public init(
+            _ method: HTTP.Method,
+            at url: URL,
+            requestBody: any Encodable,
+            requestContentType: HTTP.MimeType,
+            responseContentType: HTTP.MimeType,
+            interceptors: [HTTP.Interceptor] = [],
+            adapt: ((HTTP.Response) throws -> Resource)? = nil
+        ) where Resource: Decodable {
+            self.method = method
+            self.url = url
+            self.requestBody = requestBody
+            self.requestContentType = requestContentType
+            self.responseContentType = responseContentType
+            self.emptyResponseStatusCodes = []
+            self.interceptors = interceptors
+            self.adapt = adapt ?? { response in try response.decode(as: responseContentType) }
+        }
+
+        public init(
+            _ method: HTTP.Method,
+            at url: URL,
+            requestBody: any Encodable,
+            requestContentType: HTTP.MimeType,
+            responseContentType: HTTP.MimeType,
+            interceptors: [HTTP.Interceptor] = [],
+            adapt: @escaping (HTTP.Response) throws -> Resource
+        ) {
+            self.method = method
+            self.url = url
+            self.requestBody = requestBody
+            self.requestContentType = requestContentType
+            self.responseContentType = responseContentType
+            self.emptyResponseStatusCodes = []
+            self.interceptors = interceptors
+            self.adapt = adapt
+        }
+
+        public init(
+            _ method: HTTP.Method,
+            at url: URL,
+            requestBody: any Encodable,
+            requestContentType: HTTP.MimeType,
+            interceptors: [HTTP.Interceptor] = []
+        ) where Resource == Void {
+            self.method = method
+            self.url = url
+            self.requestBody = requestBody
+            self.requestContentType = requestContentType
+            self.responseContentType = nil
+            self.emptyResponseStatusCodes = []
+            self.interceptors = interceptors
+            self.adapt = { _ in Void() }
+        }
+
+        public init(
+            _ method: HTTP.Method,
+            at url: URL,
+            responseContentType: HTTP.MimeType,
+            emptyResponseStatusCodes: Set<Int>,
+            interceptors: [HTTP.Interceptor] = [],
+            adapt: ((HTTP.Response) throws -> Resource)? = nil
+        ) where Resource == Optional<Decodable> {
+            self.method = method
+            self.url = url
+            self.requestBody = nil
+            self.requestContentType = nil
+            self.responseContentType = responseContentType
+            self.emptyResponseStatusCodes = emptyResponseStatusCodes
+            self.interceptors = interceptors
+            self.adapt = adapt ?? { _ in Optional<Decodable>(nil) }
+        }
+
+        public init(
+            _ method: HTTP.Method,
+            at url: URL,
+            responseContentType: HTTP.MimeType,
+            emptyResponseStatusCodes: Set<Int>,
+            interceptors: [HTTP.Interceptor] = [],
+            adapt: @escaping (HTTP.Response) throws -> Resource
+        ) {
+            self.method = method
+            self.url = url
+            self.requestBody = nil
+            self.requestContentType = nil
+            self.responseContentType = responseContentType
+            self.emptyResponseStatusCodes = emptyResponseStatusCodes
+            self.interceptors = interceptors
+            self.adapt = adapt
+        }
+
+        public init(
+            _ method: HTTP.Method,
+            at url: URL,
+            responseContentType: HTTP.MimeType,
+            interceptors: [HTTP.Interceptor] = [],
+            adapt: ((HTTP.Response) throws -> Resource)? = nil
+        ) where Resource: Decodable {
+            self.method = method
+            self.url = url
+            self.requestBody = nil
+            self.requestContentType = nil
+            self.responseContentType = responseContentType
+            self.emptyResponseStatusCodes = []
+            self.interceptors = interceptors
+            self.adapt = adapt ?? { response in try response.decode(as: responseContentType) }
+        }
+
+        public init(
+            _ method: HTTP.Method,
+            at url: URL,
+            responseContentType: HTTP.MimeType,
+            interceptors: [HTTP.Interceptor] = [],
+            adapt: @escaping (HTTP.Response) throws -> Resource
+        ) {
+            self.method = method
+            self.url = url
+            self.requestBody = nil
+            self.requestContentType = nil
+            self.responseContentType = responseContentType
+            self.emptyResponseStatusCodes = []
+            self.interceptors = interceptors
+            self.adapt = adapt
+        }
+
+        public init(
+            _ method: HTTP.Method,
+            at url: URL,
+            interceptors: [HTTP.Interceptor]
+        ) where Resource == Void {
+            self.method = method
+            self.url = url
+            self.requestBody = nil
+            self.requestContentType = nil
+            self.responseContentType = nil
+            self.emptyResponseStatusCodes = []
+            self.interceptors = interceptors
+            self.adapt = { _ in Void() }
+        }
+    }
+}
+
+public extension HTTP.Client {
+    func call<Resource: Decodable>(
+        _ endpoint: HTTP.Endpoint<Resource?>
+    ) async -> Result<Resource?, HTTP.Failure> {
+        if let requestBody = endpoint.requestBody, let requestContentType = endpoint.requestContentType {
+            return await request(
+                endpoint.method,
+                at: endpoint.url,
+                requestBody: requestBody,
+                requestContentType: requestContentType,
+                responseContentType: endpoint.responseContentType ?? .json,
+                emptyResponseStatusCodes: endpoint.emptyResponseStatusCodes,
+                interceptors: endpoint.interceptors,
+                adapt: endpoint.adapt
+            )
+        } else {
+            return await request(
+                endpoint.method,
+                at: endpoint.url,
+                responseContentType: endpoint.responseContentType ?? .json,
+                emptyResponseStatusCodes: endpoint.emptyResponseStatusCodes,
+                interceptors: endpoint.interceptors,
+                adapt: endpoint.adapt
+            )
+        }
+    }
+
+    func call<Resource>(
+        _ endpoint: HTTP.Endpoint<Resource?>
+    ) async -> Result<Resource?, HTTP.Failure> {
+        if let requestBody = endpoint.requestBody, let requestContentType = endpoint.requestContentType {
+            return await request(
+                endpoint.method,
+                at: endpoint.url,
+                requestBody: requestBody,
+                requestContentType: requestContentType,
+                responseContentType: endpoint.responseContentType ?? .json,
+                emptyResponseStatusCodes: endpoint.emptyResponseStatusCodes,
+                interceptors: endpoint.interceptors,
+                adapt: endpoint.adapt
+            )
+        } else {
+            return await request(
+                endpoint.method,
+                at: endpoint.url,
+                responseContentType: endpoint.responseContentType ?? .json,
+                emptyResponseStatusCodes: endpoint.emptyResponseStatusCodes,
+                interceptors: endpoint.interceptors,
+                adapt: endpoint.adapt
+            )
+        }
+    }
+
+    func call<Resource: Decodable>(
+        _ endpoint: HTTP.Endpoint<Resource>
+    ) async -> Result<Resource, HTTP.Failure> {
+        if let requestBody = endpoint.requestBody, let requestContentType = endpoint.requestContentType {
+            return await request(
+                endpoint.method,
+                at: endpoint.url,
+                requestBody: requestBody,
+                requestContentType: requestContentType,
+                responseContentType: endpoint.responseContentType ?? .json,
+                interceptors: endpoint.interceptors,
+                adapt: endpoint.adapt
+            )
+        } else {
+            return await request(
+                endpoint.method,
+                at: endpoint.url,
+                responseContentType: endpoint.responseContentType ?? .json,
+                interceptors: endpoint.interceptors,
+                adapt: endpoint.adapt
+            )
+        }
+    }
+
+    func call<Resource>(
+        _ endpoint: HTTP.Endpoint<Resource>
+    ) async -> Result<Resource, HTTP.Failure> {
+        if let requestBody = endpoint.requestBody, let requestContentType = endpoint.requestContentType {
+            return await request(
+                endpoint.method,
+                at: endpoint.url,
+                requestBody: requestBody,
+                requestContentType: requestContentType,
+                responseContentType: endpoint.responseContentType ?? .json,
+                interceptors: endpoint.interceptors,
+                adapt: endpoint.adapt
+            )
+        } else {
+            return await request(
+                endpoint.method,
+                at: endpoint.url,
+                responseContentType: endpoint.responseContentType ?? .json,
+                interceptors: endpoint.interceptors,
+                adapt: endpoint.adapt
+            )
+        }
+    }
+
+    func call(
+        _ endpoint: HTTP.Endpoint<Void>
+    ) async -> Result<Void, HTTP.Failure> {
+        if let requestBody = endpoint.requestBody, let requestContentType = endpoint.requestContentType {
+            return await request(
+                endpoint.method,
+                at: endpoint.url,
+                requestBody: requestBody,
+                requestContentType: requestContentType,
+                interceptors: endpoint.interceptors
+            )
+        } else {
+            return await request(
+                endpoint.method,
+                at: endpoint.url,
+                interceptors: endpoint.interceptors
+            )
+        }
     }
 }

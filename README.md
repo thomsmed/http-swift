@@ -146,3 +146,42 @@ let result: Result<Void, HTTP.Failure> = await httpClient.request(
     interceptors: []
 )
 ```
+
+## Encapsulate requests in Endpoints
+
+```swift
+let httpClient = HTTP.Client()
+
+struct Feature {
+    struct Response {
+        let text: String
+    }
+
+    static func featureEndpoint(text: String) -> HTTP.Endpoint<Response> {
+        struct Request: Encodable {
+            let text: String
+        }
+
+        let url = URL(string: "https://example.ios/feature/endpoint")!
+
+        let request = Request(text: text)
+
+        return HTTP.Endpoint(
+            .post,
+            at: url,
+            requestBody: request,
+            requestContentType: .json,
+            responseContentType: .json,
+            interceptors: []
+        ) { response in
+            struct ActualResponse: Decodable {
+                let number: Int
+            }
+            let actualResponse: ActualResponse = try response.decode(as: .json)
+            return Response(text: String(actualResponse.number))
+        }
+    }
+}
+
+let result = await httpClient.call(Feature.featureEndpoint(text: "Hello World"))
+```

@@ -5,7 +5,7 @@ public extension HTTP {
         private struct EmptyRequest: Encodable {}
 
         private enum FetchResult {
-            case success(Data?)
+            case success(Data?, Int)
             case retry
             case retryAfter(TimeInterval)
             case failure(HTTP.Failure)
@@ -169,15 +169,15 @@ public extension HTTP {
             }
 
             if emptyResponseStatusCodes.contains(httpURLResponse.statusCode) {
-                return .success(nil)
+                return .success(nil, httpURLResponse.statusCode)
             }
 
             switch httpURLResponse.statusCode {
                 case 200..<300:
-                    return .success(data)
+                    return .success(data, httpURLResponse.statusCode)
 
                 case 300..<400:
-                    return .success(data)
+                    return .success(data, httpURLResponse.statusCode)
 
                 case 400..<500:
                     let failureResponse = Failure.Response(
@@ -210,7 +210,7 @@ public extension HTTP {
 // MARK: Handling HTTP.Client.FetchResult
 
 private extension HTTP.Client {
-    private func request<RequestBody: Encodable, ResponseBody: Decodable>(
+    private func request<RequestBody: Encodable>(
         _ method: HTTP.Method,
         at url: URL,
         requestBody: RequestBody,
@@ -219,7 +219,7 @@ private extension HTTP.Client {
         emptyResponseStatusCodes: Set<Int>,
         interceptors: [HTTP.Interceptor],
         context: HTTP.Context
-    ) async -> Result<ResponseBody?, HTTP.Failure> {
+    ) async -> Result<(Data?, Int), HTTP.Failure> {
         let result = await fetch(
             method,
             at: url,
@@ -232,18 +232,8 @@ private extension HTTP.Client {
         )
 
         switch result {
-            case .success(let data):
-                guard let data else {
-                    return .success(nil)
-                }
-
-                do {
-                    // Decode data as non-optional ResponseBody
-                    let response: ResponseBody = try decode(data, as: responseContentType)
-                    return .success(response)
-                } catch {
-                    return .failure(.decodingError(error))
-                }
+            case .success(let data, let statusCode):
+                return .success((data, statusCode))
 
             case .failure(let error):
                 return .failure(error)
@@ -301,7 +291,7 @@ private extension HTTP.Client {
         }
     }
 
-    private func request<RequestBody: Encodable, ResponseBody: Decodable>(
+    private func request<RequestBody: Encodable>(
         _ method: HTTP.Method,
         at url: URL,
         requestBody: RequestBody,
@@ -309,7 +299,7 @@ private extension HTTP.Client {
         responseContentType: HTTP.MimeType,
         interceptors: [HTTP.Interceptor],
         context: HTTP.Context
-    ) async -> Result<ResponseBody, HTTP.Failure> {
+    ) async -> Result<(Data, Int), HTTP.Failure> {
         let result = await fetch(
             method,
             at: url,
@@ -322,18 +312,12 @@ private extension HTTP.Client {
         )
 
         switch result {
-            case .success(let data):
+            case .success(let data, let statusCode):
                 guard let data else {
                     fatalError("Expected data to be non-optional when emptyResponseStatusCodes is empty")
                 }
 
-                do {
-                    // Decode data as non-optional ResponseBody
-                    let response: ResponseBody = try decode(data, as: responseContentType)
-                    return .success(response)
-                } catch {
-                    return .failure(.decodingError(error))
-                }
+                return .success((data, statusCode))
 
             case .failure(let error):
                 return .failure(error)
@@ -488,7 +472,7 @@ public extension HTTP.Client {
             retryCount: 0
         )
 
-        return await request(
+        switch await request(
             method,
             at: url,
             requestBody: requestBody,
@@ -497,7 +481,23 @@ public extension HTTP.Client {
             emptyResponseStatusCodes: emptyResponseStatusCodes,
             interceptors: interceptors,
             context: context
-        )
+        ) {
+            case .success(let (data, _)):
+                guard let data else {
+                    return .success(nil)
+                }
+
+                do {
+                    // Decode data as non-optional ResponseBody
+                    let response: ResponseBody = try decode(data, as: responseContentType)
+                    return .success(response)
+                } catch {
+                    return .failure(.decodingError(error))
+                }
+
+            case .failure(let failure):
+                return .failure(failure)
+        }
     }
 
     func request<RequestBody: Encodable, ResponseBody: Decodable>(
@@ -519,7 +519,7 @@ public extension HTTP.Client {
             retryCount: 0
         )
 
-        return await request(
+        switch await request(
             method,
             at: url,
             requestBody: requestBody,
@@ -527,7 +527,19 @@ public extension HTTP.Client {
             responseContentType: responseContentType,
             interceptors: interceptors,
             context: context
-        )
+        ) {
+            case .success(let (data, _)):
+                do {
+                    // Decode data as non-optional ResponseBody
+                    let response: ResponseBody = try decode(data, as: responseContentType)
+                    return .success(response)
+                } catch {
+                    return .failure(.decodingError(error))
+                }
+
+            case .failure(let failure):
+                return .failure(failure)
+        }
     }
 
     func request<RequestBody: Encodable>(
@@ -576,7 +588,7 @@ public extension HTTP.Client {
             retryCount: 0
         )
 
-        return await request(
+        switch await request(
             method,
             at: url,
             requestBody: EmptyRequest(),
@@ -585,7 +597,23 @@ public extension HTTP.Client {
             emptyResponseStatusCodes: emptyResponseStatusCodes,
             interceptors: interceptors,
             context: context
-        )
+        ) {
+            case .success(let (data, _)):
+                guard let data else {
+                    return .success(nil)
+                }
+
+                do {
+                    // Decode data as non-optional ResponseBody
+                    let response: ResponseBody = try decode(data, as: responseContentType)
+                    return .success(response)
+                } catch {
+                    return .failure(.decodingError(error))
+                }
+
+            case .failure(let failure):
+                return .failure(failure)
+        }
     }
 
     func request<ResponseBody: Decodable>(
@@ -605,7 +633,7 @@ public extension HTTP.Client {
             retryCount: 0
         )
 
-        return await request(
+        switch await request(
             method,
             at: url,
             requestBody: EmptyRequest(),
@@ -613,7 +641,19 @@ public extension HTTP.Client {
             responseContentType: responseContentType,
             interceptors: interceptors,
             context: context
-        )
+        ) {
+            case .success(let (data, _)):
+                do {
+                    // Decode data as non-optional ResponseBody
+                    let response: ResponseBody = try decode(data, as: responseContentType)
+                    return .success(response)
+                } catch {
+                    return .failure(.decodingError(error))
+                }
+
+            case .failure(let failure):
+                return .failure(failure)
+        }
     }
 
     func request(

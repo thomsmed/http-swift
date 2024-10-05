@@ -3,7 +3,7 @@ import Foundation
 public extension HTTP {
     final class Client: Sendable {
         private enum FetchResult {
-            case success(Data?, Int)
+            case success(Data, Int)
             case retry
             case retryAfter(TimeInterval)
             case failure(HTTP.Failure)
@@ -161,10 +161,6 @@ public extension HTTP {
                 return .failure(.processingError(error))
             }
 
-            if emptyResponseStatusCodes.contains(httpURLResponse.statusCode) {
-                return .success(nil, httpURLResponse.statusCode)
-            }
-
             switch httpURLResponse.statusCode {
                 case 200..<300:
                     return .success(data, httpURLResponse.statusCode)
@@ -212,7 +208,7 @@ private extension HTTP.Client {
         emptyResponseStatusCodes: Set<Int>,
         interceptors: [HTTP.Interceptor],
         context: HTTP.Context
-    ) async -> Result<(Data?, Int), HTTP.Failure> {
+    ) async -> Result<(Data, Int), HTTP.Failure> {
         let result = await fetch(
             method,
             at: url,
@@ -306,10 +302,6 @@ private extension HTTP.Client {
 
         switch result {
             case .success(let data, let statusCode):
-                guard let data else {
-                    fatalError("Expected data to be non-optional when emptyResponseStatusCodes is empty")
-                }
-
                 return .success((data, statusCode))
 
             case .failure(let error):
@@ -482,8 +474,8 @@ public extension HTTP.Client {
             interceptors: interceptors,
             context: context
         ) {
-            case .success(let (data, _)):
-                guard let data else {
+            case .success(let (data, statusCode)):
+                if emptyResponseStatusCodes.contains(statusCode) {
                     return .success(nil)
                 }
 
@@ -612,8 +604,8 @@ public extension HTTP.Client {
             interceptors: interceptors,
             context: context
         ) {
-            case .success(let (data, _)):
-                guard let data else {
+            case .success(let (data, statusCode)):
+                if emptyResponseStatusCodes.contains(statusCode) {
                     return .success(nil)
                 }
 

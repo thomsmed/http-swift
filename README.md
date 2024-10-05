@@ -58,9 +58,9 @@ switch result {
     case .success:
         break
     case .failure(.clientError(let errorResponse)):
-        if let errorBody = try? errorResponse.decode() as OneTypeOfErrorBody {
+        if let errorBody: OneTypeOfErrorBody = try? errorResponse.decode(as: .json) {
             // ...
-        } else if let errorBody = try? errorResponse.decode() as AnotherTypeOfErrorBody {
+        } else if let errorBody = try? errorResponse.decode(as: .json) as AnotherTypeOfErrorBody {
             // ...
         } else {
             // ...

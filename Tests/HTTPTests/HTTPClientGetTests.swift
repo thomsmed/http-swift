@@ -176,7 +176,7 @@ import HTTP
                 case let httpFailure as HTTP.Failure:
                     switch httpFailure {
                         case let .clientError(response):
-                            return try response.decode() == expectedErrorBody
+                            return try response.decode(as: .json) == expectedErrorBody
                         default:
                             return false
                     }
@@ -220,7 +220,7 @@ import HTTP
                 case let httpFailure as HTTP.Failure:
                     switch httpFailure {
                         case let .clientError(response):
-                            return try response.body == expectedErrorResponseData
+                            return response.body == expectedErrorResponseData
                         default:
                             return false
                     }

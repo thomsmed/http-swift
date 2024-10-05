@@ -415,7 +415,7 @@ private extension HTTP.Client {
     }
 }
 
-// MARK: Public Methods
+// MARK: Making Requests
 
 public extension HTTP.Client {
     func request<RequestBody: Encodable, ResponseBody: Decodable>(
@@ -666,6 +666,190 @@ public extension HTTP.Client {
             requestContentType: nil,
             interceptors: interceptors,
             context: context
+        )
+    }
+}
+
+// MARK: Calling Endpoints
+
+public extension HTTP {
+    struct Endpoint<RequestBody, ResponseBody> {
+        public let method: HTTP.Method
+        public let url: URL
+        public let requestBody: RequestBody
+        public let requestContentType: HTTP.MimeType
+        public let responseContentType: HTTP.MimeType
+        public let emptyResponseStatusCodes: Set<Int>
+        public let interceptors: [HTTP.Interceptor]
+
+        public init(
+            _ method: HTTP.Method,
+            at url: URL,
+            requestBody: RequestBody,
+            requestContentType: HTTP.MimeType,
+            responseContentType: HTTP.MimeType,
+            emptyResponseStatusCodes: Set<Int>,
+            interceptors: [HTTP.Interceptor]
+        ) where RequestBody: Encodable, ResponseBody == Optional<Decodable> {
+            self.method = method
+            self.url = url
+            self.requestBody = requestBody
+            self.requestContentType = requestContentType
+            self.responseContentType = responseContentType
+            self.emptyResponseStatusCodes = emptyResponseStatusCodes
+            self.interceptors = interceptors
+        }
+
+        public init(
+            _ method: HTTP.Method,
+            at url: URL,
+            requestBody: RequestBody,
+            requestContentType: HTTP.MimeType,
+            responseContentType: HTTP.MimeType,
+            interceptors: [HTTP.Interceptor]
+        ) where RequestBody: Encodable, ResponseBody: Decodable {
+            self.method = method
+            self.url = url
+            self.requestBody = requestBody
+            self.requestContentType = requestContentType
+            self.responseContentType = responseContentType
+            self.emptyResponseStatusCodes = []
+            self.interceptors = interceptors
+        }
+
+        public init(
+            _ method: HTTP.Method,
+            at url: URL,
+            requestBody: RequestBody,
+            requestContentType: HTTP.MimeType,
+            interceptors: [HTTP.Interceptor]
+        ) where RequestBody: Encodable, ResponseBody == Void {
+            self.method = method
+            self.url = url
+            self.requestBody = requestBody
+            self.requestContentType = requestContentType
+            self.responseContentType = .json
+            self.emptyResponseStatusCodes = []
+            self.interceptors = interceptors
+        }
+
+        public init(
+            _ method: HTTP.Method,
+            at url: URL,
+            responseContentType: HTTP.MimeType,
+            emptyResponseStatusCodes: Set<Int>,
+            interceptors: [HTTP.Interceptor]
+        ) where RequestBody == Void, ResponseBody == Optional<Decodable> {
+            self.method = method
+            self.url = url
+            self.requestBody = ()
+            self.requestContentType = .json
+            self.responseContentType = responseContentType
+            self.emptyResponseStatusCodes = emptyResponseStatusCodes
+            self.interceptors = interceptors
+        }
+
+        public init(
+            _ method: HTTP.Method,
+            at url: URL,
+            responseContentType: HTTP.MimeType,
+            interceptors: [HTTP.Interceptor]
+        ) where RequestBody == Void, ResponseBody: Decodable {
+            self.method = method
+            self.url = url
+            self.requestBody = ()
+            self.requestContentType = .json
+            self.responseContentType = responseContentType
+            self.emptyResponseStatusCodes = []
+            self.interceptors = interceptors
+        }
+
+        public init(
+            _ method: HTTP.Method,
+            at url: URL,
+            interceptors: [HTTP.Interceptor]
+        ) where RequestBody == Void, ResponseBody == Void {
+            self.method = method
+            self.url = url
+            self.requestBody = ()
+            self.requestContentType = .json
+            self.responseContentType = .json
+            self.emptyResponseStatusCodes = []
+            self.interceptors = interceptors
+        }
+    }
+}
+
+public extension HTTP.Client {
+    func call<RequestBody: Encodable, ResponseBody: Decodable>(
+        _ endpoint: HTTP.Endpoint<RequestBody, ResponseBody?>
+    ) async -> Result<ResponseBody?, HTTP.Failure> {
+        await request(
+            endpoint.method,
+            at: endpoint.url,
+            requestBody: endpoint.requestBody,
+            requestContentType: endpoint.requestContentType,
+            responseContentType: endpoint.responseContentType,
+            emptyResponseStatusCodes: endpoint.emptyResponseStatusCodes,
+            interceptors: endpoint.interceptors
+        )
+    }
+
+    func call<RequestBody: Encodable, ResponseBody: Decodable>(
+        _ endpoint: HTTP.Endpoint<RequestBody, ResponseBody>
+    ) async -> Result<ResponseBody, HTTP.Failure> {
+        await request(
+            endpoint.method,
+            at: endpoint.url,
+            requestBody: endpoint.requestBody,
+            requestContentType: endpoint.requestContentType,
+            responseContentType: endpoint.responseContentType,
+            interceptors: endpoint.interceptors
+        )
+    }
+
+    func call<RequestBody: Encodable>(
+        _ endpoint: HTTP.Endpoint<RequestBody, Void>
+    ) async -> Result<Void, HTTP.Failure> {
+        await request(
+            endpoint.method,
+            at: endpoint.url,
+            requestBody: endpoint.requestBody,
+            requestContentType: endpoint.requestContentType,
+            interceptors: endpoint.interceptors
+        )
+    }
+
+    func call<ResponseBody: Decodable>(
+        _ endpoint: HTTP.Endpoint<Void, ResponseBody?>
+    ) async -> Result<ResponseBody?, HTTP.Failure> {
+        await request(
+            endpoint.method,
+            at: endpoint.url,
+            responseContentType: endpoint.responseContentType,
+            emptyResponseStatusCodes: endpoint.emptyResponseStatusCodes,
+            interceptors: endpoint.interceptors
+        )
+    }
+
+    func call<ResponseBody: Decodable>(
+        _ endpoint: HTTP.Endpoint<Void, ResponseBody>
+    ) async -> Result<ResponseBody, HTTP.Failure> {
+        await request(
+            endpoint.method,
+            at: endpoint.url,
+            responseContentType: endpoint.responseContentType,
+            interceptors: endpoint.interceptors
+        )
+    }
+
+    func call(
+        _ endpoint: HTTP.Endpoint<Void, Void>
+    ) async -> Result<Void, HTTP.Failure> {
+        await request(
+            endpoint.method,
+            at: endpoint.url,
+            interceptors: endpoint.interceptors
         )
     }
 }

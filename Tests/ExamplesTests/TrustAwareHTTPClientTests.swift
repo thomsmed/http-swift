@@ -77,7 +77,7 @@ private final actor TestTrustProvider: TrustProvider {
 
         let requestBody = RequestBody(message: "Hello World")
 
-        let endpoint = ProtectedEndpoint<RequestBody, ResponseBody>(
+        let endpoint = ProtectedEndpoint<ResponseBody>(
             .post,
             at: url,
             requestBody: requestBody,
@@ -116,7 +116,7 @@ private final actor TestTrustProvider: TrustProvider {
 
             static func helloWorld(
                 message: String
-            ) -> ProtectedEndpoint<RequestBody, ResponseBody> {
+            ) -> ProtectedEndpoint<ResponseBody> {
                 let url: URL = .baseURL
                     .appending(component: String(666))
                     .appending(path: "hello/world")
@@ -126,7 +126,7 @@ private final actor TestTrustProvider: TrustProvider {
 
                 let requestBody = RequestBody(message: message)
 
-                return ProtectedEndpoint<RequestBody, ResponseBody>(
+                return ProtectedEndpoint<ResponseBody>(
                     .post,
                     at: url,
                     requestBody: requestBody,

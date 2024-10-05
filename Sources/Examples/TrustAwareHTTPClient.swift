@@ -33,20 +33,20 @@ public protocol TrustProvider: Sendable {
 
 // MARK: ProtectedEndpoint
 
-public struct ProtectedEndpoint<RequestBody, ResponseBody> {
-    let endpoint: HTTP.Endpoint<RequestBody, ResponseBody>
+public struct ProtectedEndpoint<Resource> {
+    let endpoint: HTTP.Endpoint<Resource>
     let authenticationScheme: AuthenticationScheme
 
     public init(
         _ method: HTTP.Method,
         at url: URL,
-        requestBody: RequestBody,
+        requestBody: any Encodable,
         requestContentType: HTTP.MimeType,
         responseContentType: HTTP.MimeType,
         emptyResponseStatusCodes: Set<Int>,
         interceptors: [HTTP.Interceptor],
         authenticationScheme: AuthenticationScheme
-    ) where RequestBody: Encodable, ResponseBody == Optional<Decodable> {
+    ) where Resource == Optional<Decodable> {
         self.endpoint = HTTP.Endpoint(
             method,
             at: url,
@@ -62,12 +62,12 @@ public struct ProtectedEndpoint<RequestBody, ResponseBody> {
     public init(
         _ method: HTTP.Method,
         at url: URL,
-        requestBody: RequestBody,
+        requestBody: any Encodable,
         requestContentType: HTTP.MimeType,
         responseContentType: HTTP.MimeType,
         interceptors: [HTTP.Interceptor],
         authenticationScheme: AuthenticationScheme
-    ) where RequestBody: Encodable, ResponseBody: Decodable {
+    ) where Resource: Decodable {
         self.endpoint = HTTP.Endpoint(
             method,
             at: url,
@@ -82,11 +82,11 @@ public struct ProtectedEndpoint<RequestBody, ResponseBody> {
     public init(
         _ method: HTTP.Method,
         at url: URL,
-        requestBody: RequestBody,
+        requestBody: any Encodable,
         requestContentType: HTTP.MimeType,
         interceptors: [HTTP.Interceptor],
         authenticationScheme: AuthenticationScheme
-    ) where RequestBody: Encodable, ResponseBody == Void {
+    ) where Resource == Void {
         self.endpoint = HTTP.Endpoint(
             method,
             at: url,
@@ -104,7 +104,7 @@ public struct ProtectedEndpoint<RequestBody, ResponseBody> {
         emptyResponseStatusCodes: Set<Int>,
         interceptors: [HTTP.Interceptor],
         authenticationScheme: AuthenticationScheme
-    ) where RequestBody == Void, ResponseBody == Optional<Decodable> {
+    ) where Resource == Optional<Decodable> {
         self.endpoint = HTTP.Endpoint(
             method,
             at: url,
@@ -121,7 +121,7 @@ public struct ProtectedEndpoint<RequestBody, ResponseBody> {
         responseContentType: HTTP.MimeType,
         interceptors: [HTTP.Interceptor],
         authenticationScheme: AuthenticationScheme
-    ) where RequestBody == Void, ResponseBody: Decodable {
+    ) where Resource: Decodable {
         self.endpoint = HTTP.Endpoint(
             method,
             at: url,
@@ -136,7 +136,7 @@ public struct ProtectedEndpoint<RequestBody, ResponseBody> {
         at url: URL,
         interceptors: [HTTP.Interceptor],
         authenticationScheme: AuthenticationScheme
-    ) where RequestBody == Void, ResponseBody == Void {
+    ) where Resource == Void {
         self.endpoint = HTTP.Endpoint(
             method,
             at: url,
@@ -207,105 +207,108 @@ public final class TrustAwareHTTPClient: Sendable {
 // MARK: Calling ProtectedEndpoint
 
 public extension TrustAwareHTTPClient {
-    func call<RequestBody: Encodable, ResponseBody: Decodable>(
-        _ protectedEndpoint: ProtectedEndpoint<RequestBody, ResponseBody?>
-    ) async -> Result<ResponseBody?, HTTP.Failure> {
-        await httpClient.request(
-            protectedEndpoint.endpoint.method,
-            at: protectedEndpoint.endpoint.url,
-            requestBody: protectedEndpoint.endpoint.requestBody,
-            requestContentType: protectedEndpoint.endpoint.requestContentType,
-            responseContentType: protectedEndpoint.endpoint.responseContentType,
-            emptyResponseStatusCodes: protectedEndpoint.endpoint.emptyResponseStatusCodes,
-            interceptors: [
-                Interceptor(
-                    trustProvider: trustProvider,
-                    authenticationScheme: protectedEndpoint.authenticationScheme
-                )
-            ] + protectedEndpoint.endpoint.interceptors
-        )
+    func call<Resource: Decodable>(
+        _ protectedEndpoint: ProtectedEndpoint<Resource?>
+    ) async -> Result<Resource?, HTTP.Failure> {
+        if
+            let requestBody = protectedEndpoint.endpoint.requestBody,
+            let requestContentType = protectedEndpoint.endpoint.requestContentType
+        {
+            return await httpClient.request(
+                protectedEndpoint.endpoint.method,
+                at: protectedEndpoint.endpoint.url,
+                requestBody: requestBody,
+                requestContentType: requestContentType,
+                responseContentType: protectedEndpoint.endpoint.responseContentType ?? .json,
+                emptyResponseStatusCodes: protectedEndpoint.endpoint.emptyResponseStatusCodes,
+                interceptors: [
+                    Interceptor(
+                        trustProvider: trustProvider,
+                        authenticationScheme: protectedEndpoint.authenticationScheme
+                    )
+                ] + protectedEndpoint.endpoint.interceptors
+            )
+        } else {
+            return await httpClient.request(
+                protectedEndpoint.endpoint.method,
+                at: protectedEndpoint.endpoint.url,
+                responseContentType: protectedEndpoint.endpoint.responseContentType ?? .json,
+                emptyResponseStatusCodes: protectedEndpoint.endpoint.emptyResponseStatusCodes,
+                interceptors: [
+                    Interceptor(
+                        trustProvider: trustProvider,
+                        authenticationScheme: protectedEndpoint.authenticationScheme
+                    )
+                ] + protectedEndpoint.endpoint.interceptors
+            )
+        }
     }
 
-    func call<RequestBody: Encodable, ResponseBody: Decodable>(
-        _ protectedEndpoint: ProtectedEndpoint<RequestBody, ResponseBody>
-    ) async -> Result<ResponseBody, HTTP.Failure> {
-        await httpClient.request(
-            protectedEndpoint.endpoint.method,
-            at: protectedEndpoint.endpoint.url,
-            requestBody: protectedEndpoint.endpoint.requestBody,
-            requestContentType: protectedEndpoint.endpoint.requestContentType,
-            responseContentType: protectedEndpoint.endpoint.responseContentType,
-            interceptors: [
-                Interceptor(
-                    trustProvider: trustProvider,
-                    authenticationScheme: protectedEndpoint.authenticationScheme
-                )
-            ] + protectedEndpoint.endpoint.interceptors
-        )
-    }
-
-    func call<RequestBody: Encodable>(
-        _ protectedEndpoint: ProtectedEndpoint<RequestBody, Void>
-    ) async -> Result<Void, HTTP.Failure> {
-        await httpClient.request(
-            protectedEndpoint.endpoint.method,
-            at: protectedEndpoint.endpoint.url,
-            requestBody: protectedEndpoint.endpoint.requestBody,
-            requestContentType: protectedEndpoint.endpoint.requestContentType,
-            interceptors: [
-                Interceptor(
-                    trustProvider: trustProvider,
-                    authenticationScheme: protectedEndpoint.authenticationScheme
-                )
-            ] + protectedEndpoint.endpoint.interceptors
-        )
-    }
-
-    func call<ResponseBody: Decodable>(
-        _ protectedEndpoint: ProtectedEndpoint<Void, ResponseBody?>
-    ) async -> Result<ResponseBody?, HTTP.Failure> {
-        await httpClient.request(
-            protectedEndpoint.endpoint.method,
-            at: protectedEndpoint.endpoint.url,
-            responseContentType: protectedEndpoint.endpoint.responseContentType,
-            emptyResponseStatusCodes: protectedEndpoint.endpoint.emptyResponseStatusCodes,
-            interceptors: [
-                Interceptor(
-                    trustProvider: trustProvider,
-                    authenticationScheme: protectedEndpoint.authenticationScheme
-                )
-            ] + protectedEndpoint.endpoint.interceptors
-        )
-    }
-
-    func call<ResponseBody: Decodable>(
-        _ protectedEndpoint: ProtectedEndpoint<Void, ResponseBody>
-    ) async -> Result<ResponseBody, HTTP.Failure> {
-        await httpClient.request(
-            protectedEndpoint.endpoint.method,
-            at: protectedEndpoint.endpoint.url,
-            responseContentType: protectedEndpoint.endpoint.responseContentType,
-            interceptors: [
-                Interceptor(
-                    trustProvider: trustProvider,
-                    authenticationScheme: protectedEndpoint.authenticationScheme
-                )
-            ] + protectedEndpoint.endpoint.interceptors
-        )
+    func call<Resource: Decodable>(
+        _ protectedEndpoint: ProtectedEndpoint<Resource>
+    ) async -> Result<Resource, HTTP.Failure> {
+        if
+            let requestBody = protectedEndpoint.endpoint.requestBody,
+            let requestContentType = protectedEndpoint.endpoint.requestContentType
+        {
+            return await httpClient.request(
+                protectedEndpoint.endpoint.method,
+                at: protectedEndpoint.endpoint.url,
+                requestBody: requestBody,
+                requestContentType: requestContentType,
+                responseContentType: protectedEndpoint.endpoint.responseContentType ?? .json,
+                interceptors: [
+                    Interceptor(
+                        trustProvider: trustProvider,
+                        authenticationScheme: protectedEndpoint.authenticationScheme
+                    )
+                ] + protectedEndpoint.endpoint.interceptors
+            )
+        } else {
+            return await httpClient.request(
+                protectedEndpoint.endpoint.method,
+                at: protectedEndpoint.endpoint.url,
+                responseContentType: protectedEndpoint.endpoint.responseContentType ?? .json,
+                interceptors: [
+                    Interceptor(
+                        trustProvider: trustProvider,
+                        authenticationScheme: protectedEndpoint.authenticationScheme
+                    )
+                ] + protectedEndpoint.endpoint.interceptors
+            )
+        }
     }
 
     func call(
-        _ protectedEndpoint: ProtectedEndpoint<Void, Void>
+        _ protectedEndpoint: ProtectedEndpoint<Void>
     ) async -> Result<Void, HTTP.Failure> {
-        await httpClient.request(
-            protectedEndpoint.endpoint.method,
-            at: protectedEndpoint.endpoint.url,
-            interceptors: [
-                Interceptor(
-                    trustProvider: trustProvider,
-                    authenticationScheme: protectedEndpoint.authenticationScheme
-                )
-            ] + protectedEndpoint.endpoint.interceptors
-        )
+        if
+            let requestBody = protectedEndpoint.endpoint.requestBody,
+            let requestContentType = protectedEndpoint.endpoint.requestContentType
+        {
+            return await httpClient.request(
+                protectedEndpoint.endpoint.method,
+                at: protectedEndpoint.endpoint.url,
+                requestBody: requestBody,
+                requestContentType: requestContentType,
+                interceptors: [
+                    Interceptor(
+                        trustProvider: trustProvider,
+                        authenticationScheme: protectedEndpoint.authenticationScheme
+                    )
+                ] + protectedEndpoint.endpoint.interceptors
+            )
+        } else {
+            return await httpClient.request(
+                protectedEndpoint.endpoint.method,
+                at: protectedEndpoint.endpoint.url,
+                interceptors: [
+                    Interceptor(
+                        trustProvider: trustProvider,
+                        authenticationScheme: protectedEndpoint.authenticationScheme
+                    )
+                ] + protectedEndpoint.endpoint.interceptors
+            )
+        }
     }
 }

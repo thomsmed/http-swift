@@ -56,7 +56,7 @@ private extension URL {
 
         let requestBody = RequestBody(message: "Hello World")
 
-        let endpoint = HTTP.Endpoint<RequestBody, ResponseBody>(
+        let endpoint = HTTP.Endpoint<ResponseBody>(
             .post,
             at: url,
             requestBody: requestBody,
@@ -89,7 +89,7 @@ private extension URL {
 
             static func helloWorld(
                 message: String
-            ) -> HTTP.Endpoint<RequestBody, ResponseBody> {
+            ) -> HTTP.Endpoint<ResponseBody> {
                 let url: URL = .baseURL
                     .appending(component: String(666))
                     .appending(path: "hello/world")
@@ -99,7 +99,7 @@ private extension URL {
 
                 let requestBody = RequestBody(message: message)
 
-                return HTTP.Endpoint<RequestBody, ResponseBody>(
+                return HTTP.Endpoint<ResponseBody>(
                     .post,
                     at: url,
                     requestBody: requestBody,
@@ -174,7 +174,7 @@ private extension URL {
 
         let requestBody = RequestBody(message: "Hello World")
 
-        let endpoint = HTTP.Endpoint<RequestBody, ResponseBody>(
+        let endpoint = HTTP.Endpoint<ResponseBody>(
             .post,
             at: url,
             requestBody: requestBody,
@@ -209,7 +209,7 @@ private extension URL {
 
             static func helloWorld(
                 message: String
-            ) -> HTTP.Endpoint<RequestBody, ResponseBody> {
+            ) -> HTTP.Endpoint<ResponseBody> {
                 let url: URL = .baseURL
                     .appending(component: String(666))
                     .appending(path: "hello/world")
@@ -219,7 +219,7 @@ private extension URL {
 
                 let requestBody = RequestBody(message: message)
 
-                return HTTP.Endpoint<RequestBody, ResponseBody>(
+                return HTTP.Endpoint<ResponseBody>(
                     .post,
                     at: url,
                     requestBody: requestBody,
@@ -296,7 +296,7 @@ private extension URL {
 
         let requestBody = RequestBody(message: "Hello World")
 
-        let endpoint = HTTP.Endpoint<RequestBody, String>(
+        let endpoint = HTTP.Endpoint<String>(
             .post,
             at: url,
             requestBody: requestBody,
@@ -335,7 +335,7 @@ private extension URL {
 
             static func helloWorld(
                 message: String
-            ) -> HTTP.Endpoint<RequestBody, String> {
+            ) -> HTTP.Endpoint<String> {
                 let url: URL = .baseURL
                     .appending(component: String(666))
                     .appending(path: "hello/world")
@@ -345,7 +345,7 @@ private extension URL {
 
                 let requestBody = RequestBody(message: message)
 
-                return HTTP.Endpoint<RequestBody, String>(
+                return HTTP.Endpoint<String>(
                     .post,
                     at: url,
                     requestBody: requestBody,

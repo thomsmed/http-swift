@@ -3,7 +3,7 @@ import Foundation
 public extension HTTP {
     final class Client: Sendable {
         private enum FetchResult {
-            case success(Data, Int)
+            case success(Response)
             case retry
             case retryAfter(TimeInterval)
             case failure(HTTP.Failure)
@@ -48,7 +48,7 @@ public extension HTTP {
             self.options = options
         }
 
-        // MARK: Encoding and Decoding
+        // MARK: Request Body Encoding
 
         private func encode<RequestBody: Encodable>(
             _ requestBody: RequestBody,
@@ -57,16 +57,6 @@ public extension HTTP {
             switch requestContentType {
                 case .json:
                     return try encoder.encode(requestBody)
-            }
-        }
-
-        private func decode<ResponseBody: Decodable>(
-            _ responseData: Data,
-            as responseContentType: MimeType
-        ) throws -> ResponseBody {
-            switch responseContentType {
-                case .json:
-                    return try decoder.decode(ResponseBody.self, from: responseData)
             }
         }
 
@@ -161,36 +151,27 @@ public extension HTTP {
                 return .failure(.processingError(error))
             }
 
+            let response = Response(
+                decoder: decoder,
+                statusCode: httpURLResponse.statusCode,
+                body: data
+            )
+
             switch httpURLResponse.statusCode {
                 case 200..<300:
-                    return .success(data, httpURLResponse.statusCode)
+                    return .success(response)
 
                 case 300..<400:
-                    return .success(data, httpURLResponse.statusCode)
+                    return .success(response)
 
                 case 400..<500:
-                    let failureResponse = Failure.Response(
-                        decoder: decoder,
-                        statusCode: httpURLResponse.statusCode,
-                        body: data
-                    )
-                    return .failure(.clientError(failureResponse))
+                    return .failure(.clientError(response))
 
                 case 500..<600:
-                    let failureResponse = Failure.Response(
-                        decoder: decoder,
-                        statusCode: httpURLResponse.statusCode,
-                        body: data
-                    )
-                    return .failure(.serverError(failureResponse))
+                    return .failure(.serverError(response))
 
                 default:
-                    let failureResponse = Failure.Response(
-                        decoder: decoder,
-                        statusCode: httpURLResponse.statusCode,
-                        body: data
-                    )
-                    return .failure(.unexpectedStatusCode(failureResponse))
+                    return .failure(.unexpectedStatusCode(response))
             }
         }
     }
@@ -208,7 +189,7 @@ private extension HTTP.Client {
         emptyResponseStatusCodes: Set<Int>,
         interceptors: [HTTP.Interceptor],
         context: HTTP.Context
-    ) async -> Result<(Data, Int), HTTP.Failure> {
+    ) async -> Result<HTTP.Response, HTTP.Failure> {
         let result = await fetch(
             method,
             at: url,
@@ -221,8 +202,8 @@ private extension HTTP.Client {
         )
 
         switch result {
-            case .success(let data, let statusCode):
-                return .success((data, statusCode))
+            case .success(let response):
+                return .success(response)
 
             case .failure(let error):
                 return .failure(error)
@@ -288,7 +269,7 @@ private extension HTTP.Client {
         responseContentType: HTTP.MimeType,
         interceptors: [HTTP.Interceptor],
         context: HTTP.Context
-    ) async -> Result<(Data, Int), HTTP.Failure> {
+    ) async -> Result<HTTP.Response, HTTP.Failure> {
         let result = await fetch(
             method,
             at: url,
@@ -301,8 +282,8 @@ private extension HTTP.Client {
         )
 
         switch result {
-            case .success(let data, let statusCode):
-                return .success((data, statusCode))
+            case .success(let response):
+                return .success(response)
 
             case .failure(let error):
                 return .failure(error)
@@ -474,14 +455,14 @@ public extension HTTP.Client {
             interceptors: interceptors,
             context: context
         ) {
-            case .success(let (data, statusCode)):
-                if emptyResponseStatusCodes.contains(statusCode) {
+            case .success(let response):
+                if emptyResponseStatusCodes.contains(response.statusCode) {
                     return .success(nil)
                 }
 
                 do {
                     // Decode data as non-optional ResponseBody
-                    let response: ResponseBody = try decode(data, as: responseContentType)
+                    let response: ResponseBody = try response.decode(as: responseContentType)
                     return .success(response)
                 } catch {
                     return .failure(.decodingError(error))
@@ -527,10 +508,10 @@ public extension HTTP.Client {
             interceptors: interceptors,
             context: context
         ) {
-            case .success(let (data, _)):
+            case .success(let response):
                 do {
                     // Decode data as non-optional ResponseBody
-                    let response: ResponseBody = try decode(data, as: responseContentType)
+                    let response: ResponseBody = try response.decode(as: responseContentType)
                     return .success(response)
                 } catch {
                     return .failure(.decodingError(error))
@@ -604,14 +585,14 @@ public extension HTTP.Client {
             interceptors: interceptors,
             context: context
         ) {
-            case .success(let (data, statusCode)):
-                if emptyResponseStatusCodes.contains(statusCode) {
+            case .success(let response):
+                if emptyResponseStatusCodes.contains(response.statusCode) {
                     return .success(nil)
                 }
 
                 do {
                     // Decode data as non-optional ResponseBody
-                    let response: ResponseBody = try decode(data, as: responseContentType)
+                    let response: ResponseBody = try response.decode(as: responseContentType)
                     return .success(response)
                 } catch {
                     return .failure(.decodingError(error))
@@ -648,10 +629,10 @@ public extension HTTP.Client {
             interceptors: interceptors,
             context: context
         ) {
-            case .success(let (data, _)):
+            case .success(let response):
                 do {
                     // Decode data as non-optional ResponseBody
-                    let response: ResponseBody = try decode(data, as: responseContentType)
+                    let response: ResponseBody = try response.decode(as: responseContentType)
                     return .success(response)
                 } catch {
                     return .failure(.decodingError(error))

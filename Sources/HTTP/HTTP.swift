@@ -12,24 +12,27 @@ public enum HTTP {
         case json = "application/json"
     }
 
-    public enum Failure: Error {
-        public struct Response: Sendable {
-            private let decoder: JSONDecoder
+    public struct Response: Sendable {
+        private let decoder: JSONDecoder
 
-            public let statusCode: Int
-            public let body: Data
+        public let statusCode: Int
+        public let body: Data
 
-            internal init(decoder: JSONDecoder, statusCode: Int, body: Data) {
-                self.decoder = decoder
-                self.statusCode = statusCode
-                self.body = body
-            }
-
-            public func decode<T: Decodable>() throws -> T {
-                try decoder.decode(T.self, from: body)
-            }
+        internal init(decoder: JSONDecoder, statusCode: Int, body: Data) {
+            self.decoder = decoder
+            self.statusCode = statusCode
+            self.body = body
         }
 
+        public func decode<T: Decodable>(as mimeType: MimeType) throws -> T {
+            switch mimeType {
+                case .json:
+                    return try decoder.decode(T.self, from: body)
+            }
+        }
+    }
+
+    public enum Failure: Error {
         case encodingError(any Error)
         case decodingError(any Error)
         case preparationError(any Error)

@@ -12,15 +12,30 @@ public enum HTTP {
         case json = "application/json"
     }
 
+    public struct Request {
+        public var method: HTTP.Method
+        public var url: URL
+        public var body: Data? = nil
+        public var contentType: HTTP.MimeType? = nil
+        public var accept: HTTP.MimeType? = nil
+    }
+
     public struct Response: Sendable {
         private let decoder: JSONDecoder
 
         public let statusCode: Int
+        public let headers: [String: String]
         public let body: Data
 
-        internal init(decoder: JSONDecoder, statusCode: Int, body: Data) {
+        internal init(
+            decoder: JSONDecoder,
+            statusCode: Int,
+            headers: [String: String],
+            body: Data
+        ) {
             self.decoder = decoder
             self.statusCode = statusCode
+            self.headers = headers
             self.body = body
         }
 

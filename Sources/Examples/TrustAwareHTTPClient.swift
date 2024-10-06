@@ -37,10 +37,10 @@ public struct ProtectedEndpoint<Resource> {
     let endpoint: HTTP.Endpoint<Resource>
     let authenticationScheme: AuthenticationScheme
 
-    public init(
+    public init<RequestBody: Encodable>(
         _ method: HTTP.Method,
         at url: URL,
-        requestBody: any Encodable,
+        requestBody: RequestBody,
         requestContentType: HTTP.MimeType,
         responseContentType: HTTP.MimeType,
         emptyResponseStatusCodes: Set<Int>,
@@ -59,10 +59,10 @@ public struct ProtectedEndpoint<Resource> {
         self.authenticationScheme = authenticationScheme
     }
 
-    public init(
+    public init<RequestBody: Encodable>(
         _ method: HTTP.Method,
         at url: URL,
-        requestBody: any Encodable,
+        requestBody: RequestBody,
         requestContentType: HTTP.MimeType,
         responseContentType: HTTP.MimeType,
         interceptors: [HTTP.Interceptor],
@@ -79,10 +79,10 @@ public struct ProtectedEndpoint<Resource> {
         self.authenticationScheme = authenticationScheme
     }
 
-    public init(
+    public init<RequestBody: Encodable>(
         _ method: HTTP.Method,
         at url: URL,
-        requestBody: any Encodable,
+        requestBody: RequestBody,
         requestContentType: HTTP.MimeType,
         interceptors: [HTTP.Interceptor],
         authenticationScheme: AuthenticationScheme

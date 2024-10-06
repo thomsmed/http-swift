@@ -151,9 +151,19 @@ public extension HTTP {
                 return .failure(.processingError(error))
             }
 
+            let headers = httpURLResponse.allHeaderFields.keys
+                .reduce(into: [String: String]()) { headers, key in
+                    guard let headerField = key as? String else {
+                        return
+                    }
+
+                    headers[headerField] = httpURLResponse.value(forHTTPHeaderField: headerField)
+                }
+
             let response = Response(
                 decoder: decoder,
                 statusCode: httpURLResponse.statusCode,
+                headers: headers,
                 body: data
             )
 

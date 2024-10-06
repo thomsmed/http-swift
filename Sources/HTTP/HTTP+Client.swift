@@ -2,7 +2,7 @@ import Foundation
 
 public extension HTTP {
     final class Client: Sendable {
-        private enum FetchResult {
+        private enum SendResult {
             case success(Response)
             case retry
             case retryAfter(TimeInterval)
@@ -60,33 +60,28 @@ public extension HTTP {
             }
         }
 
-        // MARK: Fetching
+        // MARK: Sending
 
-        private func fetch(
-            _ method: HTTP.Method,
-            at url: URL,
-            requestData: Data?,
-            requestContentType: HTTP.MimeType?,
-            responseContentType: HTTP.MimeType?,
-            emptyResponseStatusCodes: Set<Int>,
+        private func send(
+            _ request: HTTP.Request,
             interceptors: [HTTP.Interceptor],
             context: HTTP.Context
-        ) async -> FetchResult {
-            var request = URLRequest(url: url)
-            request.httpMethod = method.rawValue
+        ) async -> SendResult {
+            var urlRequest = URLRequest(url: request.url)
+            urlRequest.httpMethod = request.method.rawValue
 
-            if let requestContentType {
-                request.setValue(requestContentType.rawValue, forHTTPHeaderField: "Content-Type")
-                request.httpBody = requestData
+            if let contentType = request.contentType {
+                urlRequest.setValue(contentType.rawValue, forHTTPHeaderField: "Content-Type")
+                urlRequest.httpBody = request.body
             }
 
-            if let responseContentType {
-                request.setValue(responseContentType.rawValue, forHTTPHeaderField: "Accept")
+            if let accept = request.accept {
+                urlRequest.setValue(accept.rawValue, forHTTPHeaderField: "Accept")
             }
 
             do {
                 for interceptor in interceptors {
-                    try await interceptor.prepare(&request, with: context)
+                    try await interceptor.prepare(&urlRequest, with: context)
 
                     if Task.isCancelled {
                         return .failure(.canceled)
@@ -97,12 +92,12 @@ public extension HTTP {
             }
 
             for observer in self.observers {
-                observer.didPrepare(request, with: context)
+                observer.didPrepare(urlRequest, with: context)
             }
 
             var (data, httpURLResponse): (Data, HTTPURLResponse)
             do {
-                (data, httpURLResponse) = try await session.data(for: request)
+                (data, httpURLResponse) = try await session.data(for: urlRequest)
             } catch {
                 for observer in self.observers {
                     observer.didEncounter(error, with: context)
@@ -187,26 +182,16 @@ public extension HTTP {
     }
 }
 
-// MARK: Handling HTTP.Client.FetchResult
+// MARK: Handling HTTP.Client.SendResult
 
 private extension HTTP.Client {
-    private func request(
-        _ method: HTTP.Method,
-        at url: URL,
-        requestData: Data?,
-        requestContentType: HTTP.MimeType?,
-        responseContentType: HTTP.MimeType,
-        emptyResponseStatusCodes: Set<Int>,
+    private func sendAndHandleRetry(
+        _ request: HTTP.Request,
         interceptors: [HTTP.Interceptor],
         context: HTTP.Context
     ) async -> Result<HTTP.Response, HTTP.Failure> {
-        let result = await fetch(
-            method,
-            at: url,
-            requestData: requestData,
-            requestContentType: requestContentType,
-            responseContentType: responseContentType,
-            emptyResponseStatusCodes: emptyResponseStatusCodes,
+        let result = await send(
+            request,
             interceptors: interceptors,
             context: context
         )
@@ -230,13 +215,8 @@ private extension HTTP.Client {
                     decoder: context.decoder,
                     retryCount: context.retryCount + 1
                 )
-                return await request(
-                    method,
-                    at: url,
-                    requestData: requestData,
-                    requestContentType: requestContentType,
-                    responseContentType: responseContentType,
-                    emptyResponseStatusCodes: emptyResponseStatusCodes,
+                return await sendAndHandleRetry(
+                    request,
                     interceptors: interceptors,
                     context: context
                 )
@@ -258,170 +238,38 @@ private extension HTTP.Client {
                     decoder: context.decoder,
                     retryCount: context.retryCount + 1
                 )
-                return await request(
-                    method,
-                    at: url,
-                    requestData: requestData,
-                    requestContentType: requestContentType,
-                    responseContentType: responseContentType,
-                    emptyResponseStatusCodes: emptyResponseStatusCodes,
+                return await sendAndHandleRetry(
+                    request,
                     interceptors: interceptors,
                     context: context
                 )
         }
     }
+}
 
-    private func request(
-        _ method: HTTP.Method,
-        at url: URL,
-        requestData: Data?,
-        requestContentType: HTTP.MimeType?,
-        responseContentType: HTTP.MimeType,
-        interceptors: [HTTP.Interceptor],
-        context: HTTP.Context
+// MARK: Sending Requests
+
+public extension HTTP.Client {
+    func send(
+        _ request: HTTP.Request,
+        interceptors: [HTTP.Interceptor]
     ) async -> Result<HTTP.Response, HTTP.Failure> {
-        let result = await fetch(
-            method,
-            at: url,
-            requestData: requestData,
-            requestContentType: requestContentType,
-            responseContentType: responseContentType,
-            emptyResponseStatusCodes: [],
+        // Apply per-request interceptors last,
+        // having per-request interceptors prepare outgoing requests after per-client interceptors.
+        // And having per-request interceptors process incoming responses before per-client interceptors.
+        let interceptors = self.interceptors + interceptors
+
+        let context = HTTP.Context(
+            encoder: encoder,
+            decoder: decoder,
+            retryCount: 0
+        )
+
+        return await sendAndHandleRetry(
+            request,
             interceptors: interceptors,
             context: context
         )
-
-        switch result {
-            case .success(let response):
-                return .success(response)
-
-            case .failure(let error):
-                return .failure(error)
-
-            case .retry:
-                guard context.retryCount < options.maxRetryCount else {
-                    return .failure(.maxRetryCountReached)
-                }
-                if Task.isCancelled {
-                    return .failure(.canceled)
-                }
-                let context = HTTP.Context(
-                    encoder: context.encoder,
-                    decoder: context.decoder,
-                    retryCount: context.retryCount + 1
-                )
-                return await request(
-                    method,
-                    at: url,
-                    requestData: requestData,
-                    requestContentType: requestContentType,
-                    responseContentType: responseContentType,
-                    interceptors: interceptors,
-                    context: context
-                )
-
-            case .retryAfter(let timeInterval):
-                guard context.retryCount < options.maxRetryCount else {
-                    return .failure(.maxRetryCountReached)
-                }
-                do {
-                    try await Task.sleep(for: .seconds(timeInterval))
-                } catch {
-                    // Task canceled.
-                }
-                if Task.isCancelled {
-                    return .failure(.canceled)
-                }
-                let context = HTTP.Context(
-                    encoder: context.encoder,
-                    decoder: context.decoder,
-                    retryCount: context.retryCount + 1
-                )
-                return await request(
-                    method,
-                    at: url,
-                    requestData: requestData,
-                    requestContentType: requestContentType,
-                    responseContentType: responseContentType,
-                    interceptors: interceptors,
-                    context: context
-                )
-        }
-    }
-
-    private func request(
-        _ method: HTTP.Method,
-        at url: URL,
-        requestData: Data?,
-        requestContentType: HTTP.MimeType?,
-        interceptors: [HTTP.Interceptor],
-        context: HTTP.Context
-    ) async -> Result<Void, HTTP.Failure> {
-        let result = await fetch(
-            method,
-            at: url,
-            requestData: requestData,
-            requestContentType: requestContentType,
-            responseContentType: nil,
-            emptyResponseStatusCodes: [],
-            interceptors: interceptors,
-            context: context
-        )
-
-        switch result {
-            case .success:
-                return .success(())
-
-            case .failure(let error):
-                return .failure(error)
-
-            case .retry:
-                guard context.retryCount < options.maxRetryCount else {
-                    return .failure(.maxRetryCountReached)
-                }
-                if Task.isCancelled {
-                    return .failure(.canceled)
-                }
-                let context = HTTP.Context(
-                    encoder: context.encoder,
-                    decoder: context.decoder,
-                    retryCount: context.retryCount + 1
-                )
-                return await request(
-                    method,
-                    at: url,
-                    requestData: requestData,
-                    requestContentType: requestContentType,
-                    interceptors: interceptors,
-                    context: context
-                )
-
-            case .retryAfter(let timeInterval):
-                guard context.retryCount < options.maxRetryCount else {
-                    return .failure(.maxRetryCountReached)
-                }
-                do {
-                    try await Task.sleep(for: .seconds(timeInterval))
-                } catch {
-                    // Task canceled.
-                }
-                if Task.isCancelled {
-                    return .failure(.canceled)
-                }
-                let context = HTTP.Context(
-                    encoder: context.encoder,
-                    decoder: context.decoder,
-                    retryCount: context.retryCount + 1
-                )
-                return await request(
-                    method,
-                    at: url,
-                    requestData: requestData,
-                    requestContentType: requestContentType,
-                    interceptors: interceptors,
-                    context: context
-                )
-        }
     }
 }
 
@@ -438,17 +286,6 @@ public extension HTTP.Client {
         interceptors: [HTTP.Interceptor] = [],
         adaptor adapt: @escaping (HTTP.Response) throws -> ResponseBody?
     ) async -> Result<ResponseBody?, HTTP.Failure> {
-        // Apply per-request interceptors last,
-        // having per-request interceptors prepare outgoing requests after per-client interceptors.
-        // And having per-request interceptors process incoming responses before per-client interceptors.
-        let interceptors = self.interceptors + interceptors
-
-        let context = HTTP.Context(
-            encoder: encoder,
-            decoder: decoder,
-            retryCount: 0
-        )
-
         let requestData: Data
         do {
             requestData = try encode(requestBody, as: requestContentType)
@@ -456,29 +293,27 @@ public extension HTTP.Client {
             return .failure(.encodingError(error))
         }
 
-        switch await request(
-            method,
-            at: url,
-            requestData: requestData,
-            requestContentType: requestContentType,
-            responseContentType: responseContentType,
-            emptyResponseStatusCodes: emptyResponseStatusCodes,
-            interceptors: interceptors,
-            context: context
-        ) {
-            case .success(let response):
-                if emptyResponseStatusCodes.contains(response.statusCode) {
-                    return .success(nil)
-                }
+        let request = HTTP.Request(
+            method: method,
+            url: url,
+            body: requestData,
+            contentType: requestContentType,
+            accept: responseContentType
+        )
 
-                do {
-                    return .success(try adapt(response))
-                } catch {
-                    return .failure(.decodingError(error))
-                }
+        return await send(
+            request,
+            interceptors: interceptors
+        ).flatMap { response in
+            if emptyResponseStatusCodes.contains(response.statusCode) {
+                return .success(nil)
+            }
 
-            case .failure(let failure):
-                return .failure(failure)
+            do {
+                return .success(try adapt(response))
+            } catch {
+                return .failure(.decodingError(error))
+            }
         }
     }
 
@@ -515,17 +350,6 @@ public extension HTTP.Client {
         interceptors: [HTTP.Interceptor] = [],
         adaptor adapt: @escaping (HTTP.Response) throws -> ResponseBody
     ) async -> Result<ResponseBody, HTTP.Failure> {
-        // Apply per-request interceptors last,
-        // having per-request interceptors prepare outgoing requests after per-client interceptors.
-        // And having per-request interceptors process incoming responses before per-client interceptors.
-        let interceptors = self.interceptors + interceptors
-
-        let context = HTTP.Context(
-            encoder: encoder,
-            decoder: decoder,
-            retryCount: 0
-        )
-
         let requestData: Data
         do {
             requestData = try encode(requestBody, as: requestContentType)
@@ -533,24 +357,23 @@ public extension HTTP.Client {
             return .failure(.encodingError(error))
         }
 
-        switch await request(
-            method,
-            at: url,
-            requestData: requestData,
-            requestContentType: requestContentType,
-            responseContentType: responseContentType,
-            interceptors: interceptors,
-            context: context
-        ) {
-            case .success(let response):
-                do {
-                    return .success(try adapt(response))
-                } catch {
-                    return .failure(.decodingError(error))
-                }
+        let request = HTTP.Request(
+            method: method,
+            url: url,
+            body: requestData,
+            contentType: requestContentType,
+            accept: responseContentType
+        )
 
-            case .failure(let failure):
-                return .failure(failure)
+        return await send(
+            request,
+            interceptors: interceptors
+        ).flatMap { response in
+            do {
+                return .success(try adapt(response))
+            } catch {
+                return .failure(.decodingError(error))
+            }
         }
     }
 
@@ -583,17 +406,6 @@ public extension HTTP.Client {
         requestContentType: HTTP.MimeType,
         interceptors: [HTTP.Interceptor] = []
     ) async -> Result<Void, HTTP.Failure> {
-        // Apply per-request interceptors last,
-        // having per-request interceptors prepare outgoing requests after per-client interceptors.
-        // And having per-request interceptors process incoming responses before per-client interceptors.
-        let interceptors = self.interceptors + interceptors
-
-        let context = HTTP.Context(
-            encoder: encoder,
-            decoder: decoder,
-            retryCount: 0
-        )
-
         let requestData: Data
         do {
             requestData = try encode(requestBody, as: requestContentType)
@@ -601,14 +413,17 @@ public extension HTTP.Client {
             return .failure(.encodingError(error))
         }
 
-        return await request(
-            method,
-            at: url,
-            requestData: requestData,
-            requestContentType: requestContentType,
-            interceptors: interceptors,
-            context: context
+        let request = HTTP.Request(
+            method: method,
+            url: url,
+            body: requestData,
+            contentType: requestContentType
         )
+
+        return await send(
+            request,
+            interceptors: interceptors
+        ).map { _ in Void() }
     }
 
     func request<ResponseBody>(
@@ -619,40 +434,25 @@ public extension HTTP.Client {
         interceptors: [HTTP.Interceptor] = [],
         adaptor adapt: @escaping (HTTP.Response) throws -> ResponseBody?
     ) async -> Result<ResponseBody?, HTTP.Failure> {
-        // Apply per-request interceptors last,
-        // having per-request interceptors prepare outgoing requests after per-client interceptors.
-        // And having per-request interceptors process incoming responses before per-client interceptors.
-        let interceptors = self.interceptors + interceptors
-
-        let context = HTTP.Context(
-            encoder: encoder,
-            decoder: decoder,
-            retryCount: 0
+        let request = HTTP.Request(
+            method: method,
+            url: url,
+            accept: responseContentType
         )
 
-        switch await request(
-            method,
-            at: url,
-            requestData: nil,
-            requestContentType: nil,
-            responseContentType: responseContentType,
-            emptyResponseStatusCodes: emptyResponseStatusCodes,
-            interceptors: interceptors,
-            context: context
-        ) {
-            case .success(let response):
-                if emptyResponseStatusCodes.contains(response.statusCode) {
-                    return .success(nil)
-                }
+        return await send(
+            request,
+            interceptors: interceptors
+        ).flatMap { response in
+            if emptyResponseStatusCodes.contains(response.statusCode) {
+                return .success(nil)
+            }
 
-                do {
-                    return .success(try adapt(response))
-                } catch {
-                    return .failure(.decodingError(error))
-                }
-
-            case .failure(let failure):
-                return .failure(failure)
+            do {
+                return .success(try adapt(response))
+            } catch {
+                return .failure(.decodingError(error))
+            }
         }
     }
 
@@ -683,35 +483,21 @@ public extension HTTP.Client {
         interceptors: [HTTP.Interceptor] = [],
         adaptor adapt: @escaping (HTTP.Response) throws -> ResponseBody
     ) async -> Result<ResponseBody, HTTP.Failure> {
-        // Apply per-request interceptors last,
-        // having per-request interceptors prepare outgoing requests after per-client interceptors.
-        // And having per-request interceptors process incoming responses before per-client interceptors.
-        let interceptors = self.interceptors + interceptors
-
-        let context = HTTP.Context(
-            encoder: encoder,
-            decoder: decoder,
-            retryCount: 0
+        let request = HTTP.Request(
+            method: method,
+            url: url,
+            accept: responseContentType
         )
 
-        switch await request(
-            method,
-            at: url,
-            requestData: nil,
-            requestContentType: nil,
-            responseContentType: responseContentType,
-            interceptors: interceptors,
-            context: context
-        ) {
-            case .success(let response):
-                do {
-                    return .success(try adapt(response))
-                } catch {
-                    return .failure(.decodingError(error))
-                }
-
-            case .failure(let failure):
-                return .failure(failure)
+        return await send(
+            request,
+            interceptors: interceptors
+        ).flatMap { response in
+            do {
+                return .success(try adapt(response))
+            } catch {
+                return .failure(.decodingError(error))
+            }
         }
     }
 
@@ -738,25 +524,15 @@ public extension HTTP.Client {
         at url: URL,
         interceptors: [HTTP.Interceptor] = []
     ) async -> Result<Void, HTTP.Failure> {
-        // Apply per-request interceptors last,
-        // having per-request interceptors prepare outgoing requests after per-client interceptors.
-        // And having per-request interceptors process incoming responses before per-client interceptors.
-        let interceptors = self.interceptors + interceptors
-
-        let context = HTTP.Context(
-            encoder: encoder,
-            decoder: decoder,
-            retryCount: 0
+        let request = HTTP.Request(
+            method: method,
+            url: url
         )
 
-        return await request(
-            method,
-            at: url,
-            requestData: nil,
-            requestContentType: nil,
-            interceptors: interceptors,
-            context: context
-        )
+        return await send(
+            request,
+            interceptors: interceptors
+        ).map { _ in Void() }
     }
 }
 

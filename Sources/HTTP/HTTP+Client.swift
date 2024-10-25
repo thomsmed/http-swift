@@ -276,23 +276,16 @@ public extension HTTP.Client {
 // MARK: Making Requests
 
 public extension HTTP.Client {
-    func request<RequestBody: Encodable, ResponseBody>(
+    func request<ResponseBody>(
         _ method: HTTP.Method,
         at url: URL,
-        requestBody: RequestBody,
+        requestData: Data,
         requestContentType: HTTP.MimeType,
         responseContentType: HTTP.MimeType,
         emptyResponseStatusCodes: Set<Int>,
         interceptors: [HTTP.Interceptor] = [],
         adaptor adapt: @escaping (HTTP.Response) throws -> ResponseBody?
     ) async -> Result<ResponseBody?, HTTP.Failure> {
-        let requestData: Data
-        do {
-            requestData = try encode(requestBody, as: requestContentType)
-        } catch {
-            return .failure(.encodingError(error))
-        }
-
         let request = HTTP.Request(
             method: method,
             url: url,
@@ -315,6 +308,35 @@ public extension HTTP.Client {
                 return .failure(.decodingError(error))
             }
         }
+    }
+
+    func request<RequestBody: Encodable, ResponseBody>(
+        _ method: HTTP.Method,
+        at url: URL,
+        requestBody: RequestBody,
+        requestContentType: HTTP.MimeType,
+        responseContentType: HTTP.MimeType,
+        emptyResponseStatusCodes: Set<Int>,
+        interceptors: [HTTP.Interceptor] = [],
+        adaptor: @escaping (HTTP.Response) throws -> ResponseBody?
+    ) async -> Result<ResponseBody?, HTTP.Failure> {
+        let requestData: Data
+        do {
+            requestData = try encode(requestBody, as: requestContentType)
+        } catch {
+            return .failure(.encodingError(error))
+        }
+
+        return await request(
+            method,
+            at: url,
+            requestData: requestData,
+            requestContentType: requestContentType,
+            responseContentType: responseContentType,
+            emptyResponseStatusCodes: emptyResponseStatusCodes,
+            interceptors: interceptors,
+            adaptor: adaptor
+        )
     }
 
     func request<RequestBody: Encodable, ResponseBody: Decodable>(
@@ -341,22 +363,15 @@ public extension HTTP.Client {
         )
     }
 
-    func request<RequestBody: Encodable, ResponseBody>(
+    func request<ResponseBody>(
         _ method: HTTP.Method,
         at url: URL,
-        requestBody: RequestBody,
+        requestData: Data,
         requestContentType: HTTP.MimeType,
         responseContentType: HTTP.MimeType,
         interceptors: [HTTP.Interceptor] = [],
         adaptor adapt: @escaping (HTTP.Response) throws -> ResponseBody
     ) async -> Result<ResponseBody, HTTP.Failure> {
-        let requestData: Data
-        do {
-            requestData = try encode(requestBody, as: requestContentType)
-        } catch {
-            return .failure(.encodingError(error))
-        }
-
         let request = HTTP.Request(
             method: method,
             url: url,
@@ -375,6 +390,33 @@ public extension HTTP.Client {
                 return .failure(.decodingError(error))
             }
         }
+    }
+
+    func request<RequestBody: Encodable, ResponseBody>(
+        _ method: HTTP.Method,
+        at url: URL,
+        requestBody: RequestBody,
+        requestContentType: HTTP.MimeType,
+        responseContentType: HTTP.MimeType,
+        interceptors: [HTTP.Interceptor] = [],
+        adaptor: @escaping (HTTP.Response) throws -> ResponseBody
+    ) async -> Result<ResponseBody, HTTP.Failure> {
+        let requestData: Data
+        do {
+            requestData = try encode(requestBody, as: requestContentType)
+        } catch {
+            return .failure(.encodingError(error))
+        }
+
+        return await request(
+            method,
+            at: url,
+            requestData: requestData,
+            requestContentType: requestContentType,
+            responseContentType: responseContentType,
+            interceptors: interceptors,
+            adaptor: adaptor
+        )
     }
 
     func request<RequestBody: Encodable, ResponseBody: Decodable>(
@@ -399,6 +441,26 @@ public extension HTTP.Client {
         )
     }
 
+    func request(
+        _ method: HTTP.Method,
+        at url: URL,
+        requestData: Data,
+        requestContentType: HTTP.MimeType,
+        interceptors: [HTTP.Interceptor] = []
+    ) async -> Result<Void, HTTP.Failure> {
+        let request = HTTP.Request(
+            method: method,
+            url: url,
+            body: requestData,
+            contentType: requestContentType
+        )
+
+        return await send(
+            request,
+            interceptors: interceptors
+        ).map { _ in Void() }
+    }
+
     func request<RequestBody: Encodable>(
         _ method: HTTP.Method,
         at url: URL,
@@ -413,17 +475,13 @@ public extension HTTP.Client {
             return .failure(.encodingError(error))
         }
 
-        let request = HTTP.Request(
-            method: method,
-            url: url,
-            body: requestData,
-            contentType: requestContentType
-        )
-
-        return await send(
-            request,
+        return await request(
+            method,
+            at: url,
+            requestData: requestData,
+            requestContentType: requestContentType,
             interceptors: interceptors
-        ).map { _ in Void() }
+        )
     }
 
     func request<ResponseBody>(
@@ -717,7 +775,7 @@ public extension HTTP {
         public init(
             _ method: HTTP.Method,
             at url: URL,
-            interceptors: [HTTP.Interceptor]
+            interceptors: [HTTP.Interceptor] = []
         ) where Resource == Void {
             self.method = method
             self.url = url
@@ -732,32 +790,6 @@ public extension HTTP {
 }
 
 public extension HTTP.Client {
-    func call<Resource: Decodable>(
-        _ endpoint: HTTP.Endpoint<Resource?>
-    ) async -> Result<Resource?, HTTP.Failure> {
-        if let requestBody = endpoint.requestBody, let requestContentType = endpoint.requestContentType {
-            return await request(
-                endpoint.method,
-                at: endpoint.url,
-                requestBody: requestBody,
-                requestContentType: requestContentType,
-                responseContentType: endpoint.responseContentType ?? .json,
-                emptyResponseStatusCodes: endpoint.emptyResponseStatusCodes,
-                interceptors: endpoint.interceptors,
-                adaptor: endpoint.adaptor
-            )
-        } else {
-            return await request(
-                endpoint.method,
-                at: endpoint.url,
-                responseContentType: endpoint.responseContentType ?? .json,
-                emptyResponseStatusCodes: endpoint.emptyResponseStatusCodes,
-                interceptors: endpoint.interceptors,
-                adaptor: endpoint.adaptor
-            )
-        }
-    }
-
     func call<Resource>(
         _ endpoint: HTTP.Endpoint<Resource?>
     ) async -> Result<Resource?, HTTP.Failure> {
@@ -778,30 +810,6 @@ public extension HTTP.Client {
                 at: endpoint.url,
                 responseContentType: endpoint.responseContentType ?? .json,
                 emptyResponseStatusCodes: endpoint.emptyResponseStatusCodes,
-                interceptors: endpoint.interceptors,
-                adaptor: endpoint.adaptor
-            )
-        }
-    }
-
-    func call<Resource: Decodable>(
-        _ endpoint: HTTP.Endpoint<Resource>
-    ) async -> Result<Resource, HTTP.Failure> {
-        if let requestBody = endpoint.requestBody, let requestContentType = endpoint.requestContentType {
-            return await request(
-                endpoint.method,
-                at: endpoint.url,
-                requestBody: requestBody,
-                requestContentType: requestContentType,
-                responseContentType: endpoint.responseContentType ?? .json,
-                interceptors: endpoint.interceptors,
-                adaptor: endpoint.adaptor
-            )
-        } else {
-            return await request(
-                endpoint.method,
-                at: endpoint.url,
-                responseContentType: endpoint.responseContentType ?? .json,
                 interceptors: endpoint.interceptors,
                 adaptor: endpoint.adaptor
             )

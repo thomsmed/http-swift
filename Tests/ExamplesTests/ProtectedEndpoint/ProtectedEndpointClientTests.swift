@@ -14,19 +14,7 @@ private extension URL {
     }()
 }
 
-private final actor TestTrustProvider: TrustProvider {
-    var accessToken: AccessToken? {
-        get async {
-            AccessToken(rawValue: "<some.access.token>")
-        }
-    }
-
-    func sign(_ request: URLRequest) async throws -> DPoP {
-        DPoP(rawValue: "<some.dpop>")
-    }
-}
-
-@Suite struct TrustAwareHTTPClientTests {
+@Suite struct ProtectedEndpointClientTests {
     @Test func test_call_protectedEndpoint() async throws {
         let decoder = JSONDecoder()
         let session = MockSession()
@@ -34,8 +22,8 @@ private final actor TestTrustProvider: TrustProvider {
             session: session,
             decoder: decoder
         )
-        let trustProvider = TestTrustProvider()
-        let trustAwareHTTPClient = TrustAwareHTTPClient(
+        let trustProvider = MockTrustProvider()
+        let endpointClient = ProtectedEndpointClient(
             httpClient: httpClient,
             trustProvider: trustProvider
         )
@@ -83,11 +71,11 @@ private final actor TestTrustProvider: TrustProvider {
             requestBody: requestBody,
             requestContentType: .json,
             responseContentType: .json,
-            interceptors: [],
-            authenticationScheme: .dPoPAndAccessToken
+            authenticationScheme: .dPoPAndAccessToken,
+            interceptors: []
         )
 
-        let responseBody = try await trustAwareHTTPClient.call(endpoint).get()
+        let responseBody = try await endpointClient.call(endpoint).get()
 
         #expect(responseBody == expectedResponseBody)
     }
@@ -99,8 +87,8 @@ private final actor TestTrustProvider: TrustProvider {
             session: session,
             decoder: decoder
         )
-        let trustProvider = TestTrustProvider()
-        let trustAwareHTTPClient = TrustAwareHTTPClient(
+        let trustProvider = MockTrustProvider()
+        let endpointClient = ProtectedEndpointClient(
             httpClient: httpClient,
             trustProvider: trustProvider
         )
@@ -132,8 +120,8 @@ private final actor TestTrustProvider: TrustProvider {
                     requestBody: requestBody,
                     requestContentType: .json,
                     responseContentType: .json,
-                    interceptors: [],
-                    authenticationScheme: .dPoPAndAccessToken
+                    authenticationScheme: .dPoPAndAccessToken,
+                    interceptors: []
                 )
             }
         }
@@ -158,7 +146,7 @@ private final actor TestTrustProvider: TrustProvider {
             )!)
         }
 
-        let responseBody = try await trustAwareHTTPClient.call(Feature.helloWorld(message: "Hello World")).get()
+        let responseBody = try await endpointClient.call(Feature.helloWorld(message: "Hello World")).get()
 
         #expect(responseBody == expectedResponseBody)
     }

@@ -20,7 +20,7 @@ dependencies: [
 ]
 ```
 
-## Request
+## Fetch
 
 ```swift
 let httpClient = HTTP.Client()
@@ -29,18 +29,20 @@ struct Response {
     /* ... */
 }
 
-let result: Result<Response, HTTP.Failure> = await httpClient.request(
-    .get,
-    at: URL(string: "https://example.ios")!,
+let result = await httpClient.fetch(
+    Response.self,
+    url: URL(string: "https://example.ios")!,
+    method: .get,
     responseContentType: .json,
     interceptors: []
 )
 
 // Optionally specify response status codes that yield empty responses
 
-let result: Result<Response?, HTTP.Failure> = await httpClient.request(
-    .get,
-    at: url,
+let result = await httpClient.fetch(
+    Response.self,
+    url: URL(string: "https://example.ios")!,
+    method: .get,
     responseContentType: .json,
     emptyResponseStatusCodes: [204],
     interceptors: []
@@ -110,9 +112,9 @@ let httpClient = HTTP.Client(
     ]
 )
 
-let result: Result<Void, HTTP.Failure> = await httpClient.request(
-    .get,
-    at: URL(string: "https://example.ios")!,
+let result = await httpClient.fetch(
+    url: URL(string: "https://example.ios")!,
+    method: .get,
     interceptors: []
 )
 ```
@@ -140,9 +142,9 @@ let httpClient = HTTP.Client(
     ]
 )
 
-let result: Result<Void, HTTP.Failure> = await httpClient.request(
-    .get,
-    at: URL(string: "https://example.ios")!,
+let result = await httpClient.fetch(
+    url: URL(string: "https://example.ios")!,
+    method: .get,
     interceptors: []
 )
 ```
@@ -167,8 +169,8 @@ struct Feature {
         let request = Request(text: text)
 
         return HTTP.Endpoint(
-            .post,
-            at: url,
+            url: url,
+            method: .post,
             requestBody: request,
             requestContentType: .json,
             responseContentType: .json,

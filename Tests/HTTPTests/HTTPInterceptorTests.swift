@@ -29,9 +29,10 @@ import HTTP
             )!)
         }
 
-        let result: Result<String, HTTP.Failure> = await httpClient.request(
-            .post,
-            at: url,
+        let result = await httpClient.fetch(
+            String.self,
+            url: url,
+            method: .post,
             requestBody: expectedResponseBody,
             requestContentType: .json,
             responseContentType: .json,
@@ -67,9 +68,10 @@ import HTTP
             )!)
         }
 
-        let result: Result<String, HTTP.Failure> = await httpClient.request(
-            .post,
-            at: url,
+        let result = await httpClient.fetch(
+            String.self,
+            url: url,
+            method: .post,
             requestBody: expectedResponseBody,
             requestContentType: .json,
             responseContentType: .json,
@@ -108,9 +110,10 @@ import HTTP
             )!)
         }
 
-        let result: Result<String, HTTP.Failure> = await httpClient.request(
-            .post,
-            at: url,
+        let result = await httpClient.fetch(
+            String.self,
+            url: url,
+            method: .post,
             requestBody: expectedResponseBody,
             requestContentType: .json,
             responseContentType: .json,

@@ -13,8 +13,8 @@ public enum HTTP {
     }
 
     public struct Request {
-        public var method: HTTP.Method
         public var url: URL
+        public var method: HTTP.Method
         public var body: Data? = nil
         public var contentType: HTTP.MimeType? = nil
         public var accept: HTTP.MimeType? = nil

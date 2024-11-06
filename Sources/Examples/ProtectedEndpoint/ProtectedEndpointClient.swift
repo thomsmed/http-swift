@@ -92,9 +92,10 @@ public extension ProtectedEndpointClient {
         let authenticationScheme = protectedEndpoint.authenticationScheme
 
         if let requestBody = endpoint.requestBody, let requestContentType = endpoint.requestContentType {
-            return await httpClient.request(
-                endpoint.method,
-                at: endpoint.url,
+            return await httpClient.fetch(
+                Resource.self,
+                url: endpoint.url,
+                method: endpoint.method,
                 requestBody: requestBody,
                 requestContentType: requestContentType,
                 responseContentType: endpoint.responseContentType ?? .json,
@@ -108,9 +109,10 @@ public extension ProtectedEndpointClient {
                 adaptor: endpoint.adaptor
             )
         } else {
-            return await httpClient.request(
-                endpoint.method,
-                at: endpoint.url,
+            return await httpClient.fetch(
+                Resource.self,
+                url: endpoint.url,
+                method: endpoint.method,
                 responseContentType: endpoint.responseContentType ?? .json,
                 emptyResponseStatusCodes: endpoint.emptyResponseStatusCodes,
                 interceptors: [
@@ -131,9 +133,10 @@ public extension ProtectedEndpointClient {
         let authenticationScheme = protectedEndpoint.authenticationScheme
 
         if let requestBody = endpoint.requestBody, let requestContentType = endpoint.requestContentType {
-            return await httpClient.request(
-                endpoint.method,
-                at: endpoint.url,
+            return await httpClient.fetch(
+                Resource.self,
+                url: endpoint.url,
+                method: endpoint.method,
                 requestBody: requestBody,
                 requestContentType: requestContentType,
                 responseContentType: endpoint.responseContentType ?? .json,
@@ -146,9 +149,10 @@ public extension ProtectedEndpointClient {
                 adaptor: endpoint.adaptor
             )
         } else {
-            return await httpClient.request(
-                endpoint.method,
-                at: endpoint.url,
+            return await httpClient.fetch(
+                Resource.self,
+                url: endpoint.url,
+                method: endpoint.method,
                 responseContentType: endpoint.responseContentType ?? .json,
                 interceptors: [
                     Interceptor(
@@ -168,9 +172,9 @@ public extension ProtectedEndpointClient {
         let authenticationScheme = protectedEndpoint.authenticationScheme
 
         if let requestBody = endpoint.requestBody, let requestContentType = endpoint.requestContentType {
-            return await httpClient.request(
-                endpoint.method,
-                at: endpoint.url,
+            return await httpClient.fetch(
+                url: endpoint.url,
+                method: endpoint.method,
                 requestBody: requestBody,
                 requestContentType: requestContentType,
                 interceptors: [
@@ -181,9 +185,9 @@ public extension ProtectedEndpointClient {
                 ] + endpoint.interceptors
             )
         } else {
-            return await httpClient.request(
-                endpoint.method,
-                at: endpoint.url,
+            return await httpClient.fetch(
+                url: endpoint.url,
+                method: endpoint.method,
                 interceptors: [
                     Interceptor(
                         trustProvider: trustProvider,

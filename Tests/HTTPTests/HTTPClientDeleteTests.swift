@@ -19,9 +19,9 @@ import HTTP
             )!)
         }
 
-        let result: Result<Void, HTTP.Failure> = await httpClient.request(
-            .delete,
-            at: url,
+        let result = await httpClient.fetch(
+            url: url,
+            method: .delete,
             interceptors: []
         )
 
@@ -53,9 +53,10 @@ import HTTP
             )!)
         }
 
-        let result: Result<ResponseBody, HTTP.Failure> = await httpClient.request(
-            .delete,
-            at: url,
+        let result = await httpClient.fetch(
+            ResponseBody.self,
+            url: url,
+            method: .delete,
             responseContentType: .json,
             interceptors: []
         )
@@ -94,9 +95,9 @@ import HTTP
 
         let requestBody = RequestBody(message: "Hello World")
 
-        let result: Result<Void, HTTP.Failure> = await httpClient.request(
-            .delete,
-            at: url,
+        let result = await httpClient.fetch(
+            url: url,
+            method: .delete,
             requestBody: requestBody,
             requestContentType: .json,
             interceptors: []
@@ -141,9 +142,10 @@ import HTTP
 
         let requestBody = RequestBody(message: "Hello World")
 
-        let result: Result<ResponseBody, HTTP.Failure> = await httpClient.request(
-            .delete,
-            at: url,
+        let result = await httpClient.fetch(
+            ResponseBody.self,
+            url: url,
+            method: .delete,
             requestBody: requestBody,
             requestContentType: .json,
             responseContentType: .json,
@@ -180,9 +182,10 @@ import HTTP
             )!)
         }
 
-        let result: Result<ResponseBody?, HTTP.Failure> = await httpClient.request(
-            .delete,
-            at: url,
+        let result = await httpClient.fetch(
+            ResponseBody.self,
+            url: url,
+            method: .delete,
             responseContentType: .json,
             emptyResponseStatusCodes: [204],
             interceptors: []
@@ -219,9 +222,10 @@ import HTTP
             )!)
         }
 
-        let result: Result<ResponseBody?, HTTP.Failure> = await httpClient.request(
-            .delete,
-            at: url,
+        let result = await httpClient.fetch(
+            ResponseBody.self,
+            url: url,
+            method: .delete,
             responseContentType: .json,
             emptyResponseStatusCodes: [204],
             interceptors: []
@@ -268,9 +272,10 @@ import HTTP
 
         let requestBody = RequestBody(message: "Hello World")
 
-        let result: Result<ResponseBody?, HTTP.Failure> = await httpClient.request(
-            .delete,
-            at: url,
+        let result = await httpClient.fetch(
+            ResponseBody.self,
+            url: url,
+            method: .delete,
             requestBody: requestBody,
             requestContentType: .json,
             responseContentType: .json,
@@ -318,9 +323,10 @@ import HTTP
 
         let requestBody = RequestBody(message: "Hello World")
 
-        let result: Result<ResponseBody?, HTTP.Failure> = await httpClient.request(
-            .delete,
-            at: url,
+        let result = await httpClient.fetch(
+            ResponseBody.self,
+            url: url,
+            method: .delete,
             requestBody: requestBody,
             requestContentType: .json,
             responseContentType: .json,
@@ -354,9 +360,9 @@ import HTTP
             )!)
         }
 
-        let result: Result<Void, HTTP.Failure> = await httpClient.request(
-            .delete,
-            at: url,
+        let result = await httpClient.fetch(
+            url: url,
+            method: .delete,
             interceptors: []
         )
 
@@ -398,9 +404,9 @@ import HTTP
             )!)
         }
 
-        let result: Result<Void, HTTP.Failure> = await httpClient.request(
-            .delete,
-            at: url,
+        let result = await httpClient.fetch(
+            url: url,
+            method: .delete,
             interceptors: []
         )
 

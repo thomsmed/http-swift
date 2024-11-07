@@ -67,12 +67,12 @@ public extension HTTP {
             urlRequest.httpMethod = request.method.rawValue
 
             if let contentType = request.contentType {
-                urlRequest.setValue(contentType.rawValue, forHTTPHeaderField: "Content-Type")
+                urlRequest.setValue(contentType.value, forHTTPHeaderField: "Content-Type")
                 urlRequest.httpBody = request.body
             }
 
             if let accept = request.accept {
-                urlRequest.setValue(accept.rawValue, forHTTPHeaderField: "Accept")
+                urlRequest.setValue(accept.value, forHTTPHeaderField: "Accept")
             }
 
             do {
@@ -277,6 +277,9 @@ public extension HTTP.Client {
         as requestContentType: HTTP.MimeType
     ) throws -> Data {
         switch requestContentType {
+        case .none, .custom:
+            throw HTTP.UnsupportedMimeType()
+
         case .json:
             return try encoder.encode(requestBody)
         }

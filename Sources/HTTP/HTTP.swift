@@ -8,9 +8,21 @@ public enum HTTP {
         case delete = "DELETE"
     }
 
-    public enum MimeType: String, Sendable {
-        case json = "application/json"
+    public enum MimeType: Sendable {
+        case none
+        case custom(String)
+        case json
+
+        internal var value: String? {
+            switch self {
+            case .none: nil
+            case .custom(let value): value
+            case .json: "application/json"
+            }
+        }
     }
+
+    public struct UnsupportedMimeType: Error {}
 
     public struct Request {
         public enum Payload {
@@ -46,8 +58,11 @@ public enum HTTP {
 
         public func decode<T: Decodable>(as mimeType: MimeType) throws -> T {
             switch mimeType {
-                case .json:
-                    return try decoder.decode(T.self, from: body)
+            case .none, .custom:
+                throw HTTP.UnsupportedMimeType()
+
+            case .json:
+                return try decoder.decode(T.self, from: body)
             }
         }
     }

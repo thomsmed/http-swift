@@ -5,7 +5,7 @@ public extension HTTP.Client {
         _: ResponseBody.Type,
         url: URL,
         method: HTTP.Method,
-        requestData: Data,
+        requestPayload: HTTP.Request.Payload,
         requestContentType: HTTP.MimeType,
         responseContentType: HTTP.MimeType,
         emptyResponseStatusCodes: Set<Int>,
@@ -15,7 +15,7 @@ public extension HTTP.Client {
         let request = HTTP.Request(
             url: url,
             method: method,
-            body: requestData,
+            payload: requestPayload,
             contentType: requestContentType,
             accept: responseContentType
         )
@@ -36,42 +36,11 @@ public extension HTTP.Client {
         }
     }
 
-    func fetch<RequestBody: Encodable, ResponseBody>(
+    func fetch<ResponseBody: Decodable>(
         _ responseBodyType: ResponseBody.Type,
         url: URL,
         method: HTTP.Method,
-        requestBody: RequestBody,
-        requestContentType: HTTP.MimeType,
-        responseContentType: HTTP.MimeType,
-        emptyResponseStatusCodes: Set<Int>,
-        interceptors: [HTTP.Interceptor] = [],
-        adaptor: @escaping (HTTP.Response) throws -> ResponseBody?
-    ) async -> Result<ResponseBody?, HTTP.Failure> {
-        let requestData: Data
-        do {
-            requestData = try encode(requestBody, as: requestContentType)
-        } catch {
-            return .failure(.encodingError(error))
-        }
-
-        return await fetch(
-            responseBodyType,
-            url: url,
-            method: method,
-            requestData: requestData,
-            requestContentType: requestContentType,
-            responseContentType: responseContentType,
-            emptyResponseStatusCodes: emptyResponseStatusCodes,
-            interceptors: interceptors,
-            adaptor: adaptor
-        )
-    }
-
-    func fetch<RequestBody: Encodable, ResponseBody: Decodable>(
-        _ responseBodyType: ResponseBody.Type,
-        url: URL,
-        method: HTTP.Method,
-        requestBody: RequestBody,
+        requestPayload: HTTP.Request.Payload,
         requestContentType: HTTP.MimeType,
         responseContentType: HTTP.MimeType,
         emptyResponseStatusCodes: Set<Int>,
@@ -82,7 +51,7 @@ public extension HTTP.Client {
             responseBodyType,
             url: url,
             method: method,
-            requestBody: requestBody,
+            requestPayload: requestPayload,
             requestContentType: requestContentType,
             responseContentType: responseContentType,
             emptyResponseStatusCodes: emptyResponseStatusCodes,
@@ -97,7 +66,7 @@ public extension HTTP.Client {
         _: ResponseBody.Type,
         url: URL,
         method: HTTP.Method,
-        requestData: Data,
+        requestPayload: HTTP.Request.Payload,
         requestContentType: HTTP.MimeType,
         responseContentType: HTTP.MimeType,
         interceptors: [HTTP.Interceptor] = [],
@@ -106,7 +75,7 @@ public extension HTTP.Client {
         let request = HTTP.Request(
             url: url,
             method: method,
-            body: requestData,
+            payload: requestPayload,
             contentType: requestContentType,
             accept: responseContentType
         )
@@ -123,40 +92,11 @@ public extension HTTP.Client {
         }
     }
 
-    func fetch<RequestBody: Encodable, ResponseBody>(
+    func fetch<ResponseBody: Decodable>(
         _ responseBodyType: ResponseBody.Type,
         url: URL,
         method: HTTP.Method,
-        requestBody: RequestBody,
-        requestContentType: HTTP.MimeType,
-        responseContentType: HTTP.MimeType,
-        interceptors: [HTTP.Interceptor] = [],
-        adaptor: @escaping (HTTP.Response) throws -> ResponseBody
-    ) async -> Result<ResponseBody, HTTP.Failure> {
-        let requestData: Data
-        do {
-            requestData = try encode(requestBody, as: requestContentType)
-        } catch {
-            return .failure(.encodingError(error))
-        }
-
-        return await fetch(
-            responseBodyType,
-            url: url,
-            method: method,
-            requestData: requestData,
-            requestContentType: requestContentType,
-            responseContentType: responseContentType,
-            interceptors: interceptors,
-            adaptor: adaptor
-        )
-    }
-
-    func fetch<RequestBody: Encodable, ResponseBody: Decodable>(
-        _ responseBodyType: ResponseBody.Type,
-        url: URL,
-        method: HTTP.Method,
-        requestBody: RequestBody,
+        requestPayload: HTTP.Request.Payload,
         requestContentType: HTTP.MimeType,
         responseContentType: HTTP.MimeType,
         interceptors: [HTTP.Interceptor] = [],
@@ -166,7 +106,7 @@ public extension HTTP.Client {
             responseBodyType,
             url: url,
             method: method,
-            requestBody: requestBody,
+            requestPayload: requestPayload,
             requestContentType: requestContentType,
             responseContentType: responseContentType,
             interceptors: interceptors,
@@ -179,14 +119,14 @@ public extension HTTP.Client {
     func fetch(
         url: URL,
         method: HTTP.Method,
-        requestData: Data,
+        requestPayload: HTTP.Request.Payload,
         requestContentType: HTTP.MimeType,
         interceptors: [HTTP.Interceptor] = []
     ) async -> Result<Void, HTTP.Failure> {
         let request = HTTP.Request(
             url: url,
             method: method,
-            body: requestData,
+            payload: requestPayload,
             contentType: requestContentType
         )
 
@@ -196,29 +136,6 @@ public extension HTTP.Client {
         ).map { _ in Void() }
     }
 
-    func fetch<RequestBody: Encodable>(
-        url: URL,
-        method: HTTP.Method,
-        requestBody: RequestBody,
-        requestContentType: HTTP.MimeType,
-        interceptors: [HTTP.Interceptor] = []
-    ) async -> Result<Void, HTTP.Failure> {
-        let requestData: Data
-        do {
-            requestData = try encode(requestBody, as: requestContentType)
-        } catch {
-            return .failure(.encodingError(error))
-        }
-
-        return await fetch(
-            url: url,
-            method: method,
-            requestData: requestData,
-            requestContentType: requestContentType,
-            interceptors: interceptors
-        )
-    }
-
     func fetch<ResponseBody>(
         _: ResponseBody.Type,
         url: URL,
@@ -231,6 +148,7 @@ public extension HTTP.Client {
         let request = HTTP.Request(
             url: url,
             method: method,
+            payload: .prepared(nil),
             accept: responseContentType
         )
 
@@ -283,6 +201,7 @@ public extension HTTP.Client {
         let request = HTTP.Request(
             url: url,
             method: method,
+            payload: .prepared(nil),
             accept: responseContentType
         )
 
@@ -325,7 +244,8 @@ public extension HTTP.Client {
     ) async -> Result<Void, HTTP.Failure> {
         let request = HTTP.Request(
             url: url,
-            method: method
+            method: method,
+            payload: .prepared(nil)
         )
 
         return await send(

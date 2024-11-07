@@ -13,9 +13,14 @@ public enum HTTP {
     }
 
     public struct Request {
+        public enum Payload {
+            case prepared(Data?)
+            case unprepared(any Encodable)
+        }
+
         public var url: URL
         public var method: HTTP.Method
-        public var body: Data? = nil
+        public var payload: Payload
         public var contentType: HTTP.MimeType? = nil
         public var accept: HTTP.MimeType? = nil
     }

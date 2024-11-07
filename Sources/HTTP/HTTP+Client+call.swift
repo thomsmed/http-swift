@@ -1,17 +1,17 @@
 import Foundation
 
 public extension HTTP.Client {
-    func call<RequestBody: Encodable, Resource>(
-        _ endpoint: HTTP.Endpoint<RequestBody, Resource?>
+    func call<Resource>(
+        _ endpoint: HTTP.Endpoint<Resource?>
     ) async -> Result<Resource?, HTTP.Failure> {
-        if let requestBody = endpoint.requestBody, let requestContentType = endpoint.requestContentType {
+        if let requestContentType = endpoint.request.contentType {
             return await fetch(
                 Resource.self,
-                url: endpoint.url,
-                method: endpoint.method,
-                requestBody: requestBody,
+                url: endpoint.request.url,
+                method: endpoint.request.method,
+                requestPayload: endpoint.request.payload,
                 requestContentType: requestContentType,
-                responseContentType: endpoint.responseContentType ?? .json,
+                responseContentType: endpoint.request.accept ?? .json,
                 emptyResponseStatusCodes: endpoint.emptyResponseStatusCodes,
                 interceptors: endpoint.interceptors,
                 adaptor: endpoint.adaptor
@@ -19,9 +19,9 @@ public extension HTTP.Client {
         } else {
             return await fetch(
                 Resource.self,
-                url: endpoint.url,
-                method: endpoint.method,
-                responseContentType: endpoint.responseContentType ?? .json,
+                url: endpoint.request.url,
+                method: endpoint.request.method,
+                responseContentType: endpoint.request.accept ?? .json,
                 emptyResponseStatusCodes: endpoint.emptyResponseStatusCodes,
                 interceptors: endpoint.interceptors,
                 adaptor: endpoint.adaptor
@@ -30,85 +30,48 @@ public extension HTTP.Client {
     }
 
     func call<Resource>(
-        _ endpoint: HTTP.Endpoint<Void, Resource?>
-    ) async -> Result<Resource?, HTTP.Failure> {
-        await fetch(
-            Resource.self,
-            url: endpoint.url,
-            method: endpoint.method,
-            responseContentType: endpoint.responseContentType ?? .json,
-            emptyResponseStatusCodes: endpoint.emptyResponseStatusCodes,
-            interceptors: endpoint.interceptors,
-            adaptor: endpoint.adaptor
-        )
-    }
-
-    func call<RequestBody: Encodable, Resource>(
-        _ endpoint: HTTP.Endpoint<RequestBody, Resource>
+        _ endpoint: HTTP.Endpoint<Resource>
     ) async -> Result<Resource, HTTP.Failure> {
-        if let requestBody = endpoint.requestBody, let requestContentType = endpoint.requestContentType {
+        if let requestContentType = endpoint.request.contentType {
             return await fetch(
                 Resource.self,
-                url: endpoint.url,
-                method: endpoint.method,
-                requestBody: requestBody,
+                url: endpoint.request.url,
+                method: endpoint.request.method,
+                requestPayload: endpoint.request.payload,
                 requestContentType: requestContentType,
-                responseContentType: endpoint.responseContentType ?? .json,
+                responseContentType: endpoint.request.accept ?? .json,
                 interceptors: endpoint.interceptors,
                 adaptor: endpoint.adaptor
             )
         } else {
             return await fetch(
                 Resource.self,
-                url: endpoint.url,
-                method: endpoint.method,
-                responseContentType: endpoint.responseContentType ?? .json,
+                url: endpoint.request.url,
+                method: endpoint.request.method,
+                responseContentType: endpoint.request.accept ?? .json,
                 interceptors: endpoint.interceptors,
                 adaptor: endpoint.adaptor
-            )
-        }
-    }
-
-    func call<Resource>(
-        _ endpoint: HTTP.Endpoint<Void, Resource>
-    ) async -> Result<Resource, HTTP.Failure> {
-        await fetch(
-            Resource.self,
-            url: endpoint.url,
-            method: endpoint.method,
-            responseContentType: endpoint.responseContentType ?? .json,
-            interceptors: endpoint.interceptors,
-            adaptor: endpoint.adaptor
-        )
-    }
-
-    func call<RequestBody: Encodable>(
-        _ endpoint: HTTP.Endpoint<RequestBody, Void>
-    ) async -> Result<Void, HTTP.Failure> {
-        if let requestBody = endpoint.requestBody, let requestContentType = endpoint.requestContentType {
-            return await fetch(
-                url: endpoint.url,
-                method: endpoint.method,
-                requestBody: requestBody,
-                requestContentType: requestContentType,
-                interceptors: endpoint.interceptors
-            )
-        } else {
-            return await fetch(
-                url: endpoint.url,
-                method: endpoint.method,
-                interceptors: endpoint.interceptors
             )
         }
     }
 
     func call(
-        _ endpoint: HTTP.Endpoint<Void, Void>
+        _ endpoint: HTTP.Endpoint<Void>
     ) async -> Result<Void, HTTP.Failure> {
-        await fetch(
-            url: endpoint.url,
-            method: endpoint.method,
-            interceptors: endpoint.interceptors
-        )
+        if let requestContentType = endpoint.request.contentType {
+            return await fetch(
+                url: endpoint.request.url,
+                method: endpoint.request.method,
+                requestPayload: endpoint.request.payload,
+                requestContentType: requestContentType,
+                interceptors: endpoint.interceptors
+            )
+        } else {
+            return await fetch(
+                url: endpoint.request.url,
+                method: endpoint.request.method,
+                interceptors: endpoint.interceptors
+            )
+        }
     }
 }

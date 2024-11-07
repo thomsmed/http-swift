@@ -98,7 +98,7 @@ import HTTP
         let result = await httpClient.fetch(
             url: url,
             method: .post,
-            requestBody: requestBody,
+            requestPayload: .unprepared(requestBody),
             requestContentType: .json,
             interceptors: []
         )
@@ -146,7 +146,7 @@ import HTTP
             ResponseBody.self,
             url: url,
             method: .post,
-            requestBody: requestBody,
+            requestPayload: .unprepared(requestBody),
             requestContentType: .json,
             responseContentType: .json,
             interceptors: []
@@ -276,7 +276,7 @@ import HTTP
             ResponseBody.self,
             url: url,
             method: .post,
-            requestBody: requestBody,
+            requestPayload: .unprepared(requestBody),
             requestContentType: .json,
             responseContentType: .json,
             emptyResponseStatusCodes: [204],
@@ -327,7 +327,7 @@ import HTTP
             ResponseBody.self,
             url: url,
             method: .post,
-            requestBody: requestBody,
+            requestPayload: .unprepared(requestBody),
             requestContentType: .json,
             responseContentType: .json,
             emptyResponseStatusCodes: [204],

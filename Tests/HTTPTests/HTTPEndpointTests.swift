@@ -56,10 +56,10 @@ private extension URL {
 
         let requestBody = RequestBody(message: "Hello World")
 
-        let endpoint = HTTP.Endpoint<RequestBody, ResponseBody>(
+        let endpoint = HTTP.Endpoint<ResponseBody>(
             url: url,
             method: .post,
-            requestBody: requestBody,
+            requestPayload: .unprepared(requestBody),
             requestContentType: .json,
             responseContentType: .json,
             interceptors: []
@@ -89,7 +89,7 @@ private extension URL {
 
             static func helloWorld(
                 message: String
-            ) -> HTTP.Endpoint<some Encodable, ResponseBody> {
+            ) -> HTTP.Endpoint<ResponseBody> {
                 let url: URL = .baseURL
                     .appending(component: String(666))
                     .appending(path: "hello/world")
@@ -99,10 +99,10 @@ private extension URL {
 
                 let requestBody = RequestBody(message: message)
 
-                return HTTP.Endpoint<RequestBody, ResponseBody>(
+                return HTTP.Endpoint<ResponseBody>(
                     url: url,
                     method: .post,
-                    requestBody: requestBody,
+                    requestPayload: .unprepared(requestBody),
                     requestContentType: .json,
                     responseContentType: .json,
                     interceptors: []
@@ -174,10 +174,10 @@ private extension URL {
 
         let requestBody = RequestBody(message: "Hello World")
 
-        let endpoint = HTTP.Endpoint<RequestBody, ResponseBody>(
+        let endpoint = HTTP.Endpoint<ResponseBody>(
             url: url,
             method: .post,
-            requestBody: requestBody,
+            requestPayload: .unprepared(requestBody),
             requestContentType: .json,
             responseContentType: .json,
             interceptors: []
@@ -209,7 +209,7 @@ private extension URL {
 
             static func helloWorld(
                 message: String
-            ) -> HTTP.Endpoint<some Encodable, ResponseBody> {
+            ) -> HTTP.Endpoint<ResponseBody> {
                 let url: URL = .baseURL
                     .appending(component: String(666))
                     .appending(path: "hello/world")
@@ -219,10 +219,10 @@ private extension URL {
 
                 let requestBody = RequestBody(message: message)
 
-                return HTTP.Endpoint<RequestBody, ResponseBody>(
+                return HTTP.Endpoint<ResponseBody>(
                     url: url,
                     method: .post,
-                    requestBody: requestBody,
+                    requestPayload: .unprepared(requestBody),
                     requestContentType: .json,
                     responseContentType: .json,
                     interceptors: []
@@ -296,10 +296,10 @@ private extension URL {
 
         let requestBody = RequestBody(message: "Hello World")
 
-        let endpoint = HTTP.Endpoint<RequestBody, String>(
+        let endpoint = HTTP.Endpoint<String>(
             url: url,
             method: .post,
-            requestBody: requestBody,
+            requestPayload: .unprepared(requestBody),
             requestContentType: .json,
             responseContentType: .json,
             interceptors: []
@@ -335,7 +335,7 @@ private extension URL {
 
             static func helloWorld(
                 message: String
-            ) -> HTTP.Endpoint<some Encodable, String> {
+            ) -> HTTP.Endpoint<String> {
                 let url: URL = .baseURL
                     .appending(component: String(666))
                     .appending(path: "hello/world")
@@ -345,10 +345,10 @@ private extension URL {
 
                 let requestBody = RequestBody(message: message)
 
-                return HTTP.Endpoint<RequestBody, String>(
+                return HTTP.Endpoint<String>(
                     url: url,
                     method: .post,
-                    requestBody: requestBody,
+                    requestPayload: .unprepared(requestBody),
                     requestContentType: .json,
                     responseContentType: .json,
                     interceptors: []

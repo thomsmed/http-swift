@@ -31,7 +31,7 @@ import HTTP
             String.self,
             url: url,
             method: .post,
-            requestBody: expectedResponseBody,
+            requestPayload: .unprepared(expectedResponseBody),
             requestContentType: .json,
             responseContentType: .json,
             interceptors: []
@@ -73,7 +73,7 @@ import HTTP
             String.self,
             url: url,
             method: .post,
-            requestBody: expectedResponseBody,
+            requestPayload: .unprepared(expectedResponseBody),
             requestContentType: .json,
             responseContentType: .json,
             interceptors: []

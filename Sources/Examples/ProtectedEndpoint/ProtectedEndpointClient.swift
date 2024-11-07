@@ -85,20 +85,20 @@ public final class ProtectedEndpointClient: Sendable {
 // MARK: Calling ProtectedEndpoint
 
 public extension ProtectedEndpointClient {
-    func call<RequestBody: Encodable, Resource>(
-        _ protectedEndpoint: ProtectedEndpoint<RequestBody, Resource?>
+    func call<Resource>(
+        _ protectedEndpoint: ProtectedEndpoint<Resource?>
     ) async -> Result<Resource?, HTTP.Failure> {
         let endpoint = protectedEndpoint.endpoint
         let authenticationScheme = protectedEndpoint.authenticationScheme
 
-        if let requestBody = endpoint.requestBody, let requestContentType = endpoint.requestContentType {
+        if let requestContentType = endpoint.request.contentType {
             return await httpClient.fetch(
                 Resource.self,
-                url: endpoint.url,
-                method: endpoint.method,
-                requestBody: requestBody,
+                url: endpoint.request.url,
+                method: endpoint.request.method,
+                requestPayload: endpoint.request.payload,
                 requestContentType: requestContentType,
-                responseContentType: endpoint.responseContentType ?? .json,
+                responseContentType: endpoint.request.accept ?? .json,
                 emptyResponseStatusCodes: endpoint.emptyResponseStatusCodes,
                 interceptors: [
                     Interceptor(
@@ -111,9 +111,9 @@ public extension ProtectedEndpointClient {
         } else {
             return await httpClient.fetch(
                 Resource.self,
-                url: endpoint.url,
-                method: endpoint.method,
-                responseContentType: endpoint.responseContentType ?? .json,
+                url: endpoint.request.url,
+                method: endpoint.request.method,
+                responseContentType: endpoint.request.accept ?? .json,
                 emptyResponseStatusCodes: endpoint.emptyResponseStatusCodes,
                 interceptors: [
                     Interceptor(
@@ -127,41 +127,19 @@ public extension ProtectedEndpointClient {
     }
 
     func call<Resource>(
-        _ protectedEndpoint: ProtectedEndpoint<Void, Resource?>
-    ) async -> Result<Resource?, HTTP.Failure> {
-        let endpoint = protectedEndpoint.endpoint
-        let authenticationScheme = protectedEndpoint.authenticationScheme
-
-        return await httpClient.fetch(
-            Resource.self,
-            url: endpoint.url,
-            method: endpoint.method,
-            responseContentType: endpoint.responseContentType ?? .json,
-            emptyResponseStatusCodes: endpoint.emptyResponseStatusCodes,
-            interceptors: [
-                Interceptor(
-                    trustProvider: trustProvider,
-                    authenticationScheme: authenticationScheme
-                )
-            ] + endpoint.interceptors,
-            adaptor: endpoint.adaptor
-        )
-    }
-
-    func call<RequestBody: Encodable, Resource>(
-        _ protectedEndpoint: ProtectedEndpoint<RequestBody, Resource>
+        _ protectedEndpoint: ProtectedEndpoint<Resource>
     ) async -> Result<Resource, HTTP.Failure> {
         let endpoint = protectedEndpoint.endpoint
         let authenticationScheme = protectedEndpoint.authenticationScheme
 
-        if let requestBody = endpoint.requestBody, let requestContentType = endpoint.requestContentType {
+        if let requestContentType = endpoint.request.contentType {
             return await httpClient.fetch(
                 Resource.self,
-                url: endpoint.url,
-                method: endpoint.method,
-                requestBody: requestBody,
+                url: endpoint.request.url,
+                method: endpoint.request.method,
+                requestPayload: endpoint.request.payload,
                 requestContentType: requestContentType,
-                responseContentType: endpoint.responseContentType ?? .json,
+                responseContentType: endpoint.request.accept ?? .json,
                 interceptors: [
                     Interceptor(
                         trustProvider: trustProvider,
@@ -173,9 +151,9 @@ public extension ProtectedEndpointClient {
         } else {
             return await httpClient.fetch(
                 Resource.self,
-                url: endpoint.url,
-                method: endpoint.method,
-                responseContentType: endpoint.responseContentType ?? .json,
+                url: endpoint.request.url,
+                method: endpoint.request.method,
+                responseContentType: endpoint.request.accept ?? .json,
                 interceptors: [
                     Interceptor(
                         trustProvider: trustProvider,
@@ -183,79 +161,40 @@ public extension ProtectedEndpointClient {
                     )
                 ] + endpoint.interceptors,
                 adaptor: endpoint.adaptor
-            )
-        }
-    }
-
-    func call<Resource>(
-        _ protectedEndpoint: ProtectedEndpoint<Void, Resource>
-    ) async -> Result<Resource, HTTP.Failure> {
-        let endpoint = protectedEndpoint.endpoint
-        let authenticationScheme = protectedEndpoint.authenticationScheme
-
-        return await httpClient.fetch(
-            Resource.self,
-            url: endpoint.url,
-            method: endpoint.method,
-            responseContentType: endpoint.responseContentType ?? .json,
-            interceptors: [
-                Interceptor(
-                    trustProvider: trustProvider,
-                    authenticationScheme: authenticationScheme
-                )
-            ] + endpoint.interceptors,
-            adaptor: endpoint.adaptor
-        )
-    }
-
-    func call<RequestBody: Encodable>(
-        _ protectedEndpoint: ProtectedEndpoint<RequestBody, Void>
-    ) async -> Result<Void, HTTP.Failure> {
-        let endpoint = protectedEndpoint.endpoint
-        let authenticationScheme = protectedEndpoint.authenticationScheme
-
-        if let requestBody = endpoint.requestBody, let requestContentType = endpoint.requestContentType {
-            return await httpClient.fetch(
-                url: endpoint.url,
-                method: endpoint.method,
-                requestBody: requestBody,
-                requestContentType: requestContentType,
-                interceptors: [
-                    Interceptor(
-                        trustProvider: trustProvider,
-                        authenticationScheme: authenticationScheme
-                    )
-                ] + endpoint.interceptors
-            )
-        } else {
-            return await httpClient.fetch(
-                url: endpoint.url,
-                method: endpoint.method,
-                interceptors: [
-                    Interceptor(
-                        trustProvider: trustProvider,
-                        authenticationScheme: authenticationScheme
-                    )
-                ] + endpoint.interceptors
             )
         }
     }
 
     func call(
-        _ protectedEndpoint: ProtectedEndpoint<Void, Void>
+        _ protectedEndpoint: ProtectedEndpoint<Void>
     ) async -> Result<Void, HTTP.Failure> {
         let endpoint = protectedEndpoint.endpoint
         let authenticationScheme = protectedEndpoint.authenticationScheme
 
-        return await httpClient.fetch(
-            url: endpoint.url,
-            method: endpoint.method,
-            interceptors: [
-                Interceptor(
-                    trustProvider: trustProvider,
-                    authenticationScheme: authenticationScheme
-                )
-            ] + endpoint.interceptors
-        )
+        if let requestContentType = endpoint.request.contentType {
+            return await httpClient.fetch(
+                url: endpoint.request.url,
+                method: endpoint.request.method,
+                requestPayload: endpoint.request.payload,
+                requestContentType: requestContentType,
+                interceptors: [
+                    Interceptor(
+                        trustProvider: trustProvider,
+                        authenticationScheme: authenticationScheme
+                    )
+                ] + endpoint.interceptors
+            )
+        } else {
+            return await httpClient.fetch(
+                url: endpoint.request.url,
+                method: endpoint.request.method,
+                interceptors: [
+                    Interceptor(
+                        trustProvider: trustProvider,
+                        authenticationScheme: authenticationScheme
+                    )
+                ] + endpoint.interceptors
+            )
+        }
     }
 }

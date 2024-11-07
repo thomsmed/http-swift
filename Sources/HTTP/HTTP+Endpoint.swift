@@ -1,12 +1,8 @@
 import Foundation
 
 public extension HTTP {
-    struct Endpoint<RequestBody, Resource> {
-        public let url: URL
-        public let method: HTTP.Method
-        public let requestBody: RequestBody?
-        public let requestContentType: HTTP.MimeType?
-        public let responseContentType: HTTP.MimeType?
+    struct Endpoint<Resource> {
+        public let request: HTTP.Request
         public let emptyResponseStatusCodes: Set<Int>
         public let interceptors: [HTTP.Interceptor]
         public let adaptor: (HTTP.Response) throws -> Resource
@@ -14,18 +10,20 @@ public extension HTTP {
         public init(
             url: URL,
             method: HTTP.Method,
-            requestBody: RequestBody,
+            requestPayload: HTTP.Request.Payload,
             requestContentType: HTTP.MimeType,
             responseContentType: HTTP.MimeType,
             emptyResponseStatusCodes: Set<Int>,
             interceptors: [HTTP.Interceptor] = [],
             adaptor: ((HTTP.Response) throws -> Resource)? = nil
-        ) where RequestBody: Encodable, Resource == Optional<Decodable> {
-            self.url = url
-            self.method = method
-            self.requestBody = requestBody
-            self.requestContentType = requestContentType
-            self.responseContentType = responseContentType
+        ) where Resource == Optional<Decodable> {
+            self.request = HTTP.Request(
+                url: url,
+                method: method,
+                payload: requestPayload,
+                contentType: requestContentType,
+                accept: responseContentType
+            )
             self.emptyResponseStatusCodes = emptyResponseStatusCodes
             self.interceptors = interceptors
             self.adaptor = adaptor ?? { _ in Optional<Decodable>(nil) }
@@ -34,18 +32,20 @@ public extension HTTP {
         public init(
             url: URL,
             method: HTTP.Method,
-            requestBody: RequestBody,
+            requestPayload: HTTP.Request.Payload,
             requestContentType: HTTP.MimeType,
             responseContentType: HTTP.MimeType,
             emptyResponseStatusCodes: Set<Int>,
             interceptors: [HTTP.Interceptor] = [],
             adaptor: @escaping (HTTP.Response) throws -> Resource
-        ) where RequestBody: Encodable {
-            self.url = url
-            self.method = method
-            self.requestBody = requestBody
-            self.requestContentType = requestContentType
-            self.responseContentType = responseContentType
+        ) {
+            self.request = HTTP.Request(
+                url: url,
+                method: method,
+                payload: requestPayload,
+                contentType: requestContentType,
+                accept: responseContentType
+            )
             self.emptyResponseStatusCodes = emptyResponseStatusCodes
             self.interceptors = interceptors
             self.adaptor = adaptor
@@ -54,17 +54,19 @@ public extension HTTP {
         public init(
             url: URL,
             method: HTTP.Method,
-            requestBody: RequestBody,
+            requestPayload: HTTP.Request.Payload,
             requestContentType: HTTP.MimeType,
             responseContentType: HTTP.MimeType,
             interceptors: [HTTP.Interceptor] = [],
             adaptor: ((HTTP.Response) throws -> Resource)? = nil
-        ) where RequestBody: Encodable, Resource: Decodable {
-            self.url = url
-            self.method = method
-            self.requestBody = requestBody
-            self.requestContentType = requestContentType
-            self.responseContentType = responseContentType
+        ) where Resource: Decodable {
+            self.request = HTTP.Request(
+                url: url,
+                method: method,
+                payload: requestPayload,
+                contentType: requestContentType,
+                accept: responseContentType
+            )
             self.emptyResponseStatusCodes = []
             self.interceptors = interceptors
             self.adaptor = adaptor ?? { response in try response.decode(as: responseContentType) }
@@ -73,17 +75,19 @@ public extension HTTP {
         public init(
             url: URL,
             method: HTTP.Method,
-            requestBody: RequestBody,
+            requestPayload: HTTP.Request.Payload,
             requestContentType: HTTP.MimeType,
             responseContentType: HTTP.MimeType,
             interceptors: [HTTP.Interceptor] = [],
             adaptor: @escaping (HTTP.Response) throws -> Resource
-        ) where RequestBody: Encodable {
-            self.url = url
-            self.method = method
-            self.requestBody = requestBody
-            self.requestContentType = requestContentType
-            self.responseContentType = responseContentType
+        ) {
+            self.request = HTTP.Request(
+                url: url,
+                method: method,
+                payload: requestPayload,
+                contentType: requestContentType,
+                accept: responseContentType
+            )
             self.emptyResponseStatusCodes = []
             self.interceptors = interceptors
             self.adaptor = adaptor
@@ -92,15 +96,17 @@ public extension HTTP {
         public init(
             url: URL,
             method: HTTP.Method,
-            requestBody: RequestBody,
+            requestPayload: HTTP.Request.Payload,
             requestContentType: HTTP.MimeType,
             interceptors: [HTTP.Interceptor] = []
-        ) where RequestBody: Encodable, Resource == Void {
-            self.url = url
-            self.method = method
-            self.requestBody = requestBody
-            self.requestContentType = requestContentType
-            self.responseContentType = nil
+        ) where Resource == Void {
+            self.request = HTTP.Request(
+                url: url,
+                method: method,
+                payload: requestPayload,
+                contentType: requestContentType,
+                accept: nil
+            )
             self.emptyResponseStatusCodes = []
             self.interceptors = interceptors
             self.adaptor = { _ in Void() }
@@ -113,12 +119,14 @@ public extension HTTP {
             emptyResponseStatusCodes: Set<Int>,
             interceptors: [HTTP.Interceptor] = [],
             adaptor: ((HTTP.Response) throws -> Resource)? = nil
-        ) where RequestBody: Encodable, Resource == Optional<Decodable> {
-            self.url = url
-            self.method = method
-            self.requestBody = nil
-            self.requestContentType = nil
-            self.responseContentType = responseContentType
+        ) where Resource == Optional<Decodable> {
+            self.request = HTTP.Request(
+                url: url,
+                method: method,
+                payload: .prepared(nil),
+                contentType: nil,
+                accept: responseContentType
+            )
             self.emptyResponseStatusCodes = emptyResponseStatusCodes
             self.interceptors = interceptors
             self.adaptor = adaptor ?? { _ in Optional<Decodable>(nil) }
@@ -131,12 +139,14 @@ public extension HTTP {
             emptyResponseStatusCodes: Set<Int>,
             interceptors: [HTTP.Interceptor] = [],
             adaptor: @escaping (HTTP.Response) throws -> Resource
-        ) where RequestBody: Encodable {
-            self.url = url
-            self.method = method
-            self.requestBody = nil
-            self.requestContentType = nil
-            self.responseContentType = responseContentType
+        ) {
+            self.request = HTTP.Request(
+                url: url,
+                method: method,
+                payload: .prepared(nil),
+                contentType: nil,
+                accept: responseContentType
+            )
             self.emptyResponseStatusCodes = emptyResponseStatusCodes
             self.interceptors = interceptors
             self.adaptor = adaptor
@@ -148,12 +158,14 @@ public extension HTTP {
             responseContentType: HTTP.MimeType,
             interceptors: [HTTP.Interceptor] = [],
             adaptor: ((HTTP.Response) throws -> Resource)? = nil
-        ) where RequestBody: Encodable, Resource: Decodable {
-            self.url = url
-            self.method = method
-            self.requestBody = nil
-            self.requestContentType = nil
-            self.responseContentType = responseContentType
+        ) where Resource: Decodable {
+            self.request = HTTP.Request(
+                url: url,
+                method: method,
+                payload: .prepared(nil),
+                contentType: nil,
+                accept: responseContentType
+            )
             self.emptyResponseStatusCodes = []
             self.interceptors = interceptors
             self.adaptor = adaptor ?? { response in try response.decode(as: responseContentType) }
@@ -165,12 +177,14 @@ public extension HTTP {
             responseContentType: HTTP.MimeType,
             interceptors: [HTTP.Interceptor] = [],
             adapt: @escaping (HTTP.Response) throws -> Resource
-        ) where RequestBody: Encodable {
-            self.url = url
-            self.method = method
-            self.requestBody = nil
-            self.requestContentType = nil
-            self.responseContentType = responseContentType
+        ) {
+            self.request = HTTP.Request(
+                url: url,
+                method: method,
+                payload: .prepared(nil),
+                contentType: nil,
+                accept: responseContentType
+            )
             self.emptyResponseStatusCodes = []
             self.interceptors = interceptors
             self.adaptor = adapt
@@ -180,12 +194,14 @@ public extension HTTP {
             url: URL,
             method: HTTP.Method,
             interceptors: [HTTP.Interceptor] = []
-        ) where RequestBody: Encodable, Resource == Void {
-            self.url = url
-            self.method = method
-            self.requestBody = nil
-            self.requestContentType = nil
-            self.responseContentType = nil
+        ) where Resource == Void {
+            self.request = HTTP.Request(
+                url: url,
+                method: method,
+                payload: .prepared(nil),
+                contentType: nil,
+                accept: nil
+            )
             self.emptyResponseStatusCodes = []
             self.interceptors = interceptors
             self.adaptor = { _ in Void() }

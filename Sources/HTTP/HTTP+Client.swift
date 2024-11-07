@@ -9,6 +9,14 @@ public extension HTTP {
             case failure(HTTP.Failure)
         }
 
+        public struct Request {
+            public var url: URL
+            public var method: HTTP.Method
+            public var body: Data? = nil
+            public var contentType: HTTP.MimeType? = nil
+            public var accept: HTTP.MimeType? = nil
+        }
+
         public struct Options: Sendable {
             public let maxRetryCount: Int
             public let timeout: TimeInterval
@@ -51,7 +59,7 @@ public extension HTTP {
         // MARK: Sending
 
         private func send(
-            _ request: HTTP.Request,
+            _ request: Request,
             interceptors: [HTTP.Interceptor],
             context: HTTP.Context
         ) async -> SendResult {
@@ -174,7 +182,7 @@ public extension HTTP {
 
 private extension HTTP.Client {
     private func sendAndHandleRetry(
-        _ request: HTTP.Request,
+        _ request: Request,
         interceptors: [HTTP.Interceptor],
         context: HTTP.Context
     ) async -> Result<HTTP.Response, HTTP.Failure> {
@@ -235,6 +243,32 @@ private extension HTTP.Client {
     }
 }
 
+// MARK: Sending (internal) Requests
+
+private extension HTTP.Client {
+    private func makeContextAndSend(
+        _ request: Request,
+        interceptors: [HTTP.Interceptor]
+    ) async -> Result<HTTP.Response, HTTP.Failure> {
+        // Apply per-request interceptors last,
+        // having per-request interceptors prepare outgoing requests after per-client interceptors.
+        // And having per-request interceptors process incoming responses before per-client interceptors.
+        let interceptors = self.interceptors + interceptors
+
+        let context = HTTP.Context(
+            encoder: encoder,
+            decoder: decoder,
+            retryCount: 0
+        )
+
+        return await sendAndHandleRetry(
+            request,
+            interceptors: interceptors,
+            context: context
+        )
+    }
+}
+
 // MARK: Encoding
 
 public extension HTTP.Client {
@@ -256,21 +290,34 @@ public extension HTTP.Client {
         _ request: HTTP.Request,
         interceptors: [HTTP.Interceptor]
     ) async -> Result<HTTP.Response, HTTP.Failure> {
-        // Apply per-request interceptors last,
-        // having per-request interceptors prepare outgoing requests after per-client interceptors.
-        // And having per-request interceptors process incoming responses before per-client interceptors.
-        let interceptors = self.interceptors + interceptors
+        let body: Data?
+        switch request.payload {
+        case .prepared(let data):
+            body = data
 
-        let context = HTTP.Context(
-            encoder: encoder,
-            decoder: decoder,
-            retryCount: 0
+        case .unprepared(let value):
+            if let contentType = request.contentType {
+                do {
+                    body = try encode(value, as: contentType)
+                } catch {
+                    return .failure(.encodingError(error))
+                }
+            } else {
+                body = nil
+            }
+        }
+
+        let request = Request(
+            url: request.url,
+            method: request.method,
+            body: body,
+            contentType: request.contentType,
+            accept: request.accept
         )
 
-        return await sendAndHandleRetry(
+        return await makeContextAndSend(
             request,
-            interceptors: interceptors,
-            context: context
+            interceptors: interceptors
         )
     }
 }

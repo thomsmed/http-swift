@@ -62,10 +62,10 @@ private extension URL {
 
         let requestBody = RequestBody(message: "Hello World")
 
-        let endpoint = ProtectedEndpoint<RequestBody, ResponseBody>(
+        let endpoint = ProtectedEndpoint<ResponseBody>(
             url: url,
             method: .post,
-            requestBody: requestBody,
+            requestPayload: .unprepared(requestBody),
             requestContentType: .json,
             responseContentType: .json,
             authenticationScheme: .none,
@@ -125,10 +125,10 @@ private extension URL {
 
         let requestBody = RequestBody(message: "Hello World")
 
-        let endpoint = ProtectedEndpoint<RequestBody, ResponseBody>(
+        let endpoint = ProtectedEndpoint<ResponseBody>(
             url: url,
             method: .post,
-            requestBody: requestBody,
+            requestPayload: .unprepared(requestBody),
             requestContentType: .json,
             responseContentType: .json,
             authenticationScheme: .dPoP,
@@ -188,10 +188,10 @@ private extension URL {
 
         let requestBody = RequestBody(message: "Hello World")
 
-        let endpoint = ProtectedEndpoint<RequestBody, ResponseBody>(
+        let endpoint = ProtectedEndpoint<ResponseBody>(
             url: url,
             method: .post,
-            requestBody: requestBody,
+            requestPayload: .unprepared(requestBody),
             requestContentType: .json,
             responseContentType: .json,
             authenticationScheme: .accessToken,
@@ -252,10 +252,10 @@ private extension URL {
 
         let requestBody = RequestBody(message: "Hello World")
 
-        let endpoint = ProtectedEndpoint<RequestBody, ResponseBody>(
+        let endpoint = ProtectedEndpoint<ResponseBody>(
             url: url,
             method: .post,
-            requestBody: requestBody,
+            requestPayload: .unprepared(requestBody),
             requestContentType: .json,
             responseContentType: .json,
             authenticationScheme: .dPoPAndAccessToken,

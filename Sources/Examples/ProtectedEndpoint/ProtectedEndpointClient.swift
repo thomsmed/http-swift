@@ -85,8 +85,8 @@ public final class ProtectedEndpointClient: Sendable {
 // MARK: Calling ProtectedEndpoint
 
 public extension ProtectedEndpointClient {
-    func call<Resource>(
-        _ protectedEndpoint: ProtectedEndpoint<Resource?>
+    func call<RequestBody: Encodable, Resource>(
+        _ protectedEndpoint: ProtectedEndpoint<RequestBody, Resource?>
     ) async -> Result<Resource?, HTTP.Failure> {
         let endpoint = protectedEndpoint.endpoint
         let authenticationScheme = protectedEndpoint.authenticationScheme
@@ -127,7 +127,29 @@ public extension ProtectedEndpointClient {
     }
 
     func call<Resource>(
-        _ protectedEndpoint: ProtectedEndpoint<Resource>
+        _ protectedEndpoint: ProtectedEndpoint<Void, Resource?>
+    ) async -> Result<Resource?, HTTP.Failure> {
+        let endpoint = protectedEndpoint.endpoint
+        let authenticationScheme = protectedEndpoint.authenticationScheme
+
+        return await httpClient.fetch(
+            Resource.self,
+            url: endpoint.url,
+            method: endpoint.method,
+            responseContentType: endpoint.responseContentType ?? .json,
+            emptyResponseStatusCodes: endpoint.emptyResponseStatusCodes,
+            interceptors: [
+                Interceptor(
+                    trustProvider: trustProvider,
+                    authenticationScheme: authenticationScheme
+                )
+            ] + endpoint.interceptors,
+            adaptor: endpoint.adaptor
+        )
+    }
+
+    func call<RequestBody: Encodable, Resource>(
+        _ protectedEndpoint: ProtectedEndpoint<RequestBody, Resource>
     ) async -> Result<Resource, HTTP.Failure> {
         let endpoint = protectedEndpoint.endpoint
         let authenticationScheme = protectedEndpoint.authenticationScheme
@@ -165,8 +187,29 @@ public extension ProtectedEndpointClient {
         }
     }
 
-    func call(
-        _ protectedEndpoint: ProtectedEndpoint<Void>
+    func call<Resource>(
+        _ protectedEndpoint: ProtectedEndpoint<Void, Resource>
+    ) async -> Result<Resource, HTTP.Failure> {
+        let endpoint = protectedEndpoint.endpoint
+        let authenticationScheme = protectedEndpoint.authenticationScheme
+
+        return await httpClient.fetch(
+            Resource.self,
+            url: endpoint.url,
+            method: endpoint.method,
+            responseContentType: endpoint.responseContentType ?? .json,
+            interceptors: [
+                Interceptor(
+                    trustProvider: trustProvider,
+                    authenticationScheme: authenticationScheme
+                )
+            ] + endpoint.interceptors,
+            adaptor: endpoint.adaptor
+        )
+    }
+
+    func call<RequestBody: Encodable>(
+        _ protectedEndpoint: ProtectedEndpoint<RequestBody, Void>
     ) async -> Result<Void, HTTP.Failure> {
         let endpoint = protectedEndpoint.endpoint
         let authenticationScheme = protectedEndpoint.authenticationScheme
@@ -196,5 +239,23 @@ public extension ProtectedEndpointClient {
                 ] + endpoint.interceptors
             )
         }
+    }
+
+    func call(
+        _ protectedEndpoint: ProtectedEndpoint<Void, Void>
+    ) async -> Result<Void, HTTP.Failure> {
+        let endpoint = protectedEndpoint.endpoint
+        let authenticationScheme = protectedEndpoint.authenticationScheme
+
+        return await httpClient.fetch(
+            url: endpoint.url,
+            method: endpoint.method,
+            interceptors: [
+                Interceptor(
+                    trustProvider: trustProvider,
+                    authenticationScheme: authenticationScheme
+                )
+            ] + endpoint.interceptors
+        )
     }
 }

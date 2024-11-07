@@ -8,11 +8,11 @@ public enum AuthenticationScheme: Sendable {
     case dPoPAndAccessToken
 }
 
-public struct ProtectedEndpoint<Resource> {
-    let endpoint: HTTP.Endpoint<Resource>
+public struct ProtectedEndpoint<RequestBody, Resource> {
+    let endpoint: HTTP.Endpoint<RequestBody, Resource>
     let authenticationScheme: AuthenticationScheme
 
-    public init<RequestBody: Encodable>(
+    public init(
         url: URL,
         method: HTTP.Method,
         requestBody: RequestBody,
@@ -22,7 +22,7 @@ public struct ProtectedEndpoint<Resource> {
         authenticationScheme: AuthenticationScheme,
         interceptors: [HTTP.Interceptor] = [],
         adaptor: ((HTTP.Response) throws -> Resource)? = nil
-    ) where Resource == Optional<Decodable> {
+    ) where RequestBody: Encodable, Resource == Optional<Decodable> {
         self.endpoint = HTTP.Endpoint(
             url: url,
             method: method,
@@ -36,7 +36,7 @@ public struct ProtectedEndpoint<Resource> {
         self.authenticationScheme = authenticationScheme
     }
 
-    public init<RequestBody: Encodable>(
+    public init(
         url: URL,
         method: HTTP.Method,
         requestBody: RequestBody,
@@ -46,7 +46,7 @@ public struct ProtectedEndpoint<Resource> {
         authenticationScheme: AuthenticationScheme,
         interceptors: [HTTP.Interceptor] = [],
         adaptor: @escaping (HTTP.Response) throws -> Resource
-    ) {
+    ) where RequestBody: Encodable {
         self.endpoint = HTTP.Endpoint(
             url: url,
             method: method,
@@ -60,7 +60,7 @@ public struct ProtectedEndpoint<Resource> {
         self.authenticationScheme = authenticationScheme
     }
 
-    public init<RequestBody: Encodable>(
+    public init(
         url: URL,
         method: HTTP.Method,
         requestBody: RequestBody,
@@ -69,7 +69,7 @@ public struct ProtectedEndpoint<Resource> {
         authenticationScheme: AuthenticationScheme,
         interceptors: [HTTP.Interceptor] = [],
         adaptor: ((HTTP.Response) throws -> Resource)? = nil
-    ) where Resource: Decodable {
+    ) where RequestBody: Encodable, Resource: Decodable {
         self.endpoint = HTTP.Endpoint(
             url: url,
             method: method,
@@ -82,7 +82,7 @@ public struct ProtectedEndpoint<Resource> {
         self.authenticationScheme = authenticationScheme
     }
 
-    public init<RequestBody: Encodable>(
+    public init(
         url: URL,
         method: HTTP.Method,
         requestBody: RequestBody,
@@ -91,7 +91,7 @@ public struct ProtectedEndpoint<Resource> {
         authenticationScheme: AuthenticationScheme,
         interceptors: [HTTP.Interceptor] = [],
         adaptor: @escaping (HTTP.Response) throws -> Resource
-    ) {
+    ) where RequestBody: Encodable {
         self.endpoint = HTTP.Endpoint(
             url: url,
             method: method,
@@ -104,14 +104,14 @@ public struct ProtectedEndpoint<Resource> {
         self.authenticationScheme = authenticationScheme
     }
 
-    public init<RequestBody: Encodable>(
+    public init(
         url: URL,
         method: HTTP.Method,
         requestBody: RequestBody,
         requestContentType: HTTP.MimeType,
         authenticationScheme: AuthenticationScheme,
         interceptors: [HTTP.Interceptor] = []
-    ) where Resource == Void {
+    ) where RequestBody: Encodable, Resource == Void {
         self.endpoint = HTTP.Endpoint(
             url: url,
             method: method,
@@ -130,7 +130,7 @@ public struct ProtectedEndpoint<Resource> {
         authenticationScheme: AuthenticationScheme,
         interceptors: [HTTP.Interceptor] = [],
         adaptor: ((HTTP.Response) throws -> Resource)? = nil
-    ) where Resource == Optional<Decodable> {
+    ) where RequestBody: Encodable, Resource == Optional<Decodable> {
         self.endpoint = HTTP.Endpoint(
             url: url,
             method: method,
@@ -150,7 +150,7 @@ public struct ProtectedEndpoint<Resource> {
         authenticationScheme: AuthenticationScheme,
         interceptors: [HTTP.Interceptor] = [],
         adaptor: @escaping (HTTP.Response) throws -> Resource
-    ) {
+    ) where RequestBody: Encodable {
         self.endpoint = HTTP.Endpoint(
             url: url,
             method: method,
@@ -169,7 +169,7 @@ public struct ProtectedEndpoint<Resource> {
         authenticationScheme: AuthenticationScheme,
         interceptors: [HTTP.Interceptor] = [],
         adaptor: ((HTTP.Response) throws -> Resource)? = nil
-    ) where Resource: Decodable {
+    ) where RequestBody: Encodable, Resource: Decodable {
         self.endpoint = HTTP.Endpoint(
             url: url,
             method: method,
@@ -187,7 +187,7 @@ public struct ProtectedEndpoint<Resource> {
         authenticationScheme: AuthenticationScheme,
         interceptors: [HTTP.Interceptor] = [],
         adapt: @escaping (HTTP.Response) throws -> Resource
-    ) {
+    ) where RequestBody: Encodable {
         self.endpoint = HTTP.Endpoint(
             url: url,
             method: method,
@@ -203,7 +203,7 @@ public struct ProtectedEndpoint<Resource> {
         method: HTTP.Method,
         authenticationScheme: AuthenticationScheme,
         interceptors: [HTTP.Interceptor] = []
-    ) where Resource == Void {
+    ) where RequestBody: Encodable, Resource == Void {
         self.endpoint = HTTP.Endpoint(
             url: url,
             method: method,

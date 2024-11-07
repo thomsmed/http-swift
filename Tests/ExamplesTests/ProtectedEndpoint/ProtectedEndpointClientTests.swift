@@ -65,7 +65,7 @@ private extension URL {
 
         let requestBody = RequestBody(message: "Hello World")
 
-        let endpoint = ProtectedEndpoint<ResponseBody>(
+        let endpoint = ProtectedEndpoint<RequestBody, ResponseBody>(
             url: url,
             method: .post,
             requestBody: requestBody,
@@ -104,7 +104,7 @@ private extension URL {
 
             static func helloWorld(
                 message: String
-            ) -> ProtectedEndpoint<ResponseBody> {
+            ) -> ProtectedEndpoint<some Encodable, ResponseBody> {
                 let url: URL = .baseURL
                     .appending(component: String(666))
                     .appending(path: "hello/world")
@@ -114,7 +114,7 @@ private extension URL {
 
                 let requestBody = RequestBody(message: message)
 
-                return ProtectedEndpoint<ResponseBody>(
+                return ProtectedEndpoint<RequestBody, ResponseBody>(
                     url: url,
                     method: .post,
                     requestBody: requestBody,

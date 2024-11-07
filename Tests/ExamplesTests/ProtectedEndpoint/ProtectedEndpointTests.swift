@@ -62,7 +62,7 @@ private extension URL {
 
         let requestBody = RequestBody(message: "Hello World")
 
-        let endpoint = ProtectedEndpoint<ResponseBody>(
+        let endpoint = ProtectedEndpoint<RequestBody, ResponseBody>(
             url: url,
             method: .post,
             requestBody: requestBody,
@@ -125,7 +125,7 @@ private extension URL {
 
         let requestBody = RequestBody(message: "Hello World")
 
-        let endpoint = ProtectedEndpoint<ResponseBody>(
+        let endpoint = ProtectedEndpoint<RequestBody, ResponseBody>(
             url: url,
             method: .post,
             requestBody: requestBody,
@@ -188,7 +188,7 @@ private extension URL {
 
         let requestBody = RequestBody(message: "Hello World")
 
-        let endpoint = ProtectedEndpoint<ResponseBody>(
+        let endpoint = ProtectedEndpoint<RequestBody, ResponseBody>(
             url: url,
             method: .post,
             requestBody: requestBody,
@@ -252,7 +252,7 @@ private extension URL {
 
         let requestBody = RequestBody(message: "Hello World")
 
-        let endpoint = ProtectedEndpoint<ResponseBody>(
+        let endpoint = ProtectedEndpoint<RequestBody, ResponseBody>(
             url: url,
             method: .post,
             requestBody: requestBody,

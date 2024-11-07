@@ -66,9 +66,9 @@ private extension URL {
         let requestBody = RequestBody(message: "Hello World")
 
         let endpoint = ProtectedEndpoint<ResponseBody>(
-            .post,
-            at: url,
-            requestBody: requestBody,
+            url: url,
+            method: .post,
+            requestPayload: .unprepared(requestBody),
             requestContentType: .json,
             responseContentType: .json,
             authenticationScheme: .dPoPAndAccessToken,
@@ -115,9 +115,9 @@ private extension URL {
                 let requestBody = RequestBody(message: message)
 
                 return ProtectedEndpoint<ResponseBody>(
-                    .post,
-                    at: url,
-                    requestBody: requestBody,
+                    url: url,
+                    method: .post,
+                    requestPayload: .unprepared(requestBody),
                     requestContentType: .json,
                     responseContentType: .json,
                     authenticationScheme: .dPoPAndAccessToken,

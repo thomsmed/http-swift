@@ -19,9 +19,9 @@ import HTTP
             )!)
         }
 
-        let result: Result<Void, HTTP.Failure> = await httpClient.request(
-            .post,
-            at: url,
+        let result = await httpClient.fetch(
+            url: url,
+            method: .post,
             interceptors: []
         )
 
@@ -53,9 +53,10 @@ import HTTP
             )!)
         }
 
-        let result: Result<ResponseBody, HTTP.Failure> = await httpClient.request(
-            .post,
-            at: url,
+        let result = await httpClient.fetch(
+            ResponseBody.self,
+            url: url,
+            method: .post,
             responseContentType: .json,
             interceptors: []
         )
@@ -94,10 +95,10 @@ import HTTP
 
         let requestBody = RequestBody(message: "Hello World")
 
-        let result: Result<Void, HTTP.Failure> = await httpClient.request(
-            .post,
-            at: url,
-            requestBody: requestBody,
+        let result = await httpClient.fetch(
+            url: url,
+            method: .post,
+            requestPayload: .unprepared(requestBody),
             requestContentType: .json,
             interceptors: []
         )
@@ -141,10 +142,11 @@ import HTTP
 
         let requestBody = RequestBody(message: "Hello World")
 
-        let result: Result<ResponseBody, HTTP.Failure> = await httpClient.request(
-            .post,
-            at: url,
-            requestBody: requestBody,
+        let result = await httpClient.fetch(
+            ResponseBody.self,
+            url: url,
+            method: .post,
+            requestPayload: .unprepared(requestBody),
             requestContentType: .json,
             responseContentType: .json,
             interceptors: []
@@ -180,9 +182,10 @@ import HTTP
             )!)
         }
 
-        let result: Result<ResponseBody?, HTTP.Failure> = await httpClient.request(
-            .post,
-            at: url,
+        let result = await httpClient.fetch(
+            ResponseBody.self,
+            url: url,
+            method: .post,
             responseContentType: .json,
             emptyResponseStatusCodes: [204],
             interceptors: []
@@ -219,9 +222,10 @@ import HTTP
             )!)
         }
 
-        let result: Result<ResponseBody?, HTTP.Failure> = await httpClient.request(
-            .post,
-            at: url,
+        let result = await httpClient.fetch(
+            ResponseBody.self,
+            url: url,
+            method: .post,
             responseContentType: .json,
             emptyResponseStatusCodes: [204],
             interceptors: []
@@ -268,10 +272,11 @@ import HTTP
 
         let requestBody = RequestBody(message: "Hello World")
 
-        let result: Result<ResponseBody?, HTTP.Failure> = await httpClient.request(
-            .post,
-            at: url,
-            requestBody: requestBody,
+        let result = await httpClient.fetch(
+            ResponseBody.self,
+            url: url,
+            method: .post,
+            requestPayload: .unprepared(requestBody),
             requestContentType: .json,
             responseContentType: .json,
             emptyResponseStatusCodes: [204],
@@ -318,10 +323,11 @@ import HTTP
 
         let requestBody = RequestBody(message: "Hello World")
 
-        let result: Result<ResponseBody?, HTTP.Failure> = await httpClient.request(
-            .post,
-            at: url,
-            requestBody: requestBody,
+        let result = await httpClient.fetch(
+            ResponseBody.self,
+            url: url,
+            method: .post,
+            requestPayload: .unprepared(requestBody),
             requestContentType: .json,
             responseContentType: .json,
             emptyResponseStatusCodes: [204],
@@ -354,9 +360,9 @@ import HTTP
             )!)
         }
 
-        let result: Result<Void, HTTP.Failure> = await httpClient.request(
-            .post,
-            at: url,
+        let result = await httpClient.fetch(
+            url: url,
+            method: .post,
             interceptors: []
         )
 
@@ -398,9 +404,9 @@ import HTTP
             )!)
         }
 
-        let result: Result<Void, HTTP.Failure> = await httpClient.request(
-            .post,
-            at: url,
+        let result = await httpClient.fetch(
+            url: url,
+            method: .post,
             interceptors: []
         )
 

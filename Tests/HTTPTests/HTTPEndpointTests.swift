@@ -57,9 +57,9 @@ private extension URL {
         let requestBody = RequestBody(message: "Hello World")
 
         let endpoint = HTTP.Endpoint<ResponseBody>(
-            .post,
-            at: url,
-            requestBody: requestBody,
+            url: url,
+            method: .post,
+            requestPayload: .unprepared(requestBody),
             requestContentType: .json,
             responseContentType: .json,
             interceptors: []
@@ -100,9 +100,9 @@ private extension URL {
                 let requestBody = RequestBody(message: message)
 
                 return HTTP.Endpoint<ResponseBody>(
-                    .post,
-                    at: url,
-                    requestBody: requestBody,
+                    url: url,
+                    method: .post,
+                    requestPayload: .unprepared(requestBody),
                     requestContentType: .json,
                     responseContentType: .json,
                     interceptors: []
@@ -175,9 +175,9 @@ private extension URL {
         let requestBody = RequestBody(message: "Hello World")
 
         let endpoint = HTTP.Endpoint<ResponseBody>(
-            .post,
-            at: url,
-            requestBody: requestBody,
+            url: url,
+            method: .post,
+            requestPayload: .unprepared(requestBody),
             requestContentType: .json,
             responseContentType: .json,
             interceptors: []
@@ -220,9 +220,9 @@ private extension URL {
                 let requestBody = RequestBody(message: message)
 
                 return HTTP.Endpoint<ResponseBody>(
-                    .post,
-                    at: url,
-                    requestBody: requestBody,
+                    url: url,
+                    method: .post,
+                    requestPayload: .unprepared(requestBody),
                     requestContentType: .json,
                     responseContentType: .json,
                     interceptors: []
@@ -297,9 +297,9 @@ private extension URL {
         let requestBody = RequestBody(message: "Hello World")
 
         let endpoint = HTTP.Endpoint<String>(
-            .post,
-            at: url,
-            requestBody: requestBody,
+            url: url,
+            method: .post,
+            requestPayload: .unprepared(requestBody),
             requestContentType: .json,
             responseContentType: .json,
             interceptors: []
@@ -346,9 +346,9 @@ private extension URL {
                 let requestBody = RequestBody(message: message)
 
                 return HTTP.Endpoint<String>(
-                    .post,
-                    at: url,
-                    requestBody: requestBody,
+                    url: url,
+                    method: .post,
+                    requestPayload: .unprepared(requestBody),
                     requestContentType: .json,
                     responseContentType: .json,
                     interceptors: []

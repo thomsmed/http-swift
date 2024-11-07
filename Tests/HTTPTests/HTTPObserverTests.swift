@@ -27,10 +27,11 @@ import HTTP
             )!)
         }
 
-        let result: Result<String, HTTP.Failure> = await httpClient.request(
-            .post,
-            at: url,
-            requestBody: expectedResponseBody,
+        let result = await httpClient.fetch(
+            String.self,
+            url: url,
+            method: .post,
+            requestPayload: .unprepared(expectedResponseBody),
             requestContentType: .json,
             responseContentType: .json,
             interceptors: []
@@ -68,10 +69,11 @@ import HTTP
             )!)
         }
 
-        let result: Result<String, HTTP.Failure> = await httpClient.request(
-            .post,
-            at: url,
-            requestBody: expectedResponseBody,
+        let result = await httpClient.fetch(
+            String.self,
+            url: url,
+            method: .post,
+            requestPayload: .unprepared(expectedResponseBody),
             requestContentType: .json,
             responseContentType: .json,
             interceptors: []

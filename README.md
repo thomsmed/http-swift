@@ -20,31 +20,69 @@ dependencies: [
 ]
 ```
 
-## Request
+## Fetch
 
 ```swift
 let httpClient = HTTP.Client()
 
-struct Response {
+// Without request payload
+
+struct Response: Decodable {
     /* ... */
 }
 
-let result: Result<Response, HTTP.Failure> = await httpClient.request(
-    .get,
-    at: URL(string: "https://example.ios")!,
+let _ = await httpClient.fetch(
+    Response.self,
+    url: URL(string: "https://example.ios")!,
+    method: .get,
+    responseContentType: .json,
+    interceptors: []
+)
+
+// With unprepared request payload (have HTTP.Client prepare/encode the payload for us)
+
+struct Request: Encodable {
+    /* ... */
+}
+
+let request = Request()
+
+let _ = await httpClient.fetch(
+    Response.self,
+    url: URL(string: "https://example.ios")!,
+    method: .post,
+    requestPayload: .unprepared(request),
+    requestContentType: .json,
+    responseContentType: .json,
+    interceptors: []
+)
+
+// With prepared request payload (prepare/encode the payload ourselves)
+
+let data = try JSONEncoder().encode(request)
+
+let _ = await httpClient.fetch(
+    Response.self,
+    url: URL(string: "https://example.ios")!,
+    method: .post,
+    requestPayload: .prepared(data),
+    requestContentType: .json,
     responseContentType: .json,
     interceptors: []
 )
 
 // Optionally specify response status codes that yield empty responses
 
-let result: Result<Response?, HTTP.Failure> = await httpClient.request(
-    .get,
-    at: url,
+let result = await httpClient.fetch(
+    Response.self,
+    url: URL(string: "https://example.ios")!,
+    method: .get,
     responseContentType: .json,
     emptyResponseStatusCodes: [204],
     interceptors: []
 )
+
+// Parse error responses
 
 struct OneTypeOfErrorBody: Decodable {
     let message: String
@@ -55,16 +93,21 @@ struct AnotherTypeOfErrorBody: Decodable {
 }
 
 switch result {
-    case .success:
-        break
-    case .failure(.clientError(let errorResponse)):
-        if let errorBody: OneTypeOfErrorBody = try? errorResponse.decode(as: .json) {
-            // ...
-        } else if let errorBody = try? errorResponse.decode(as: .json) as AnotherTypeOfErrorBody {
-            // ...
-        } else {
-            // ...
-        }
+case .success:
+    break
+
+case .failure(.clientError(let errorResponse)):
+    if let errorBody: OneTypeOfErrorBody = try? errorResponse.decode(as: .json) {
+        print("Error Body:", errorBody)
+    } else if let errorBody = try? errorResponse.decode(as: .json) as AnotherTypeOfErrorBody {
+        print("Error Body:", errorBody)
+    } else {
+        let errorMessage = try? JSONDecoder().decode(String.self, from: errorResponse.body)
+        print("Error Message:", errorMessage ?? "<unknown>")
+    }
+
+default:
+    break
 }
 ```
 
@@ -95,7 +138,7 @@ struct RetryOnTransportErrorInterceptor: HTTP.Interceptor {
             return .proceed
         }
 
-        return .retryAfter(powf(1, Float(context.retryCount)))
+        return .retryAfter(TimeInterval(powf(1, Float(context.retryCount))))
     }
 
     func process(_ response: inout HTTPURLResponse, data: inout Data, with context: HTTP.Context) async throws -> HTTP.Evaluation {
@@ -110,9 +153,9 @@ let httpClient = HTTP.Client(
     ]
 )
 
-let result: Result<Void, HTTP.Failure> = await httpClient.request(
-    .get,
-    at: URL(string: "https://example.ios")!,
+let _ = await httpClient.fetch(
+    url: URL(string: "https://example.ios")!,
+    method: .get,
     interceptors: []
 )
 ```
@@ -121,15 +164,15 @@ let result: Result<Void, HTTP.Failure> = await httpClient.request(
 
 ```swift
 struct PrintingObserver: HTTP.Observer {
-    func didPrepare(_ request: URLRequest, with context: Context)
+    func didPrepare(_ request: URLRequest, with context: HTTP.Context) {
         print("Did prepare request:", request)
     }
 
-    func didEncounter(_ transportError: any Error, with context: Context)
+    func didEncounter(_ transportError: any Error, with context: HTTP.Context) {
         print("Did encounter transport error:", transportError)
     }
 
-    func didReceive(_ response: HTTPURLResponse, with context: Context)
+    func didReceive(_ response: HTTPURLResponse, with context: HTTP.Context) {
         print("Did receive response:", response)
     }
 }
@@ -140,9 +183,9 @@ let httpClient = HTTP.Client(
     ]
 )
 
-let result: Result<Void, HTTP.Failure> = await httpClient.request(
-    .get,
-    at: URL(string: "https://example.ios")!,
+let _ = await httpClient.fetch(
+    url: URL(string: "https://example.ios")!,
+    method: .get,
     interceptors: []
 )
 ```
@@ -151,6 +194,8 @@ let result: Result<Void, HTTP.Failure> = await httpClient.request(
 
 ```swift
 let httpClient = HTTP.Client()
+
+// Scope Endpoints to their models/domains
 
 struct Feature {
     struct Response {
@@ -167,9 +212,9 @@ struct Feature {
         let request = Request(text: text)
 
         return HTTP.Endpoint(
-            .post,
-            at: url,
-            requestBody: request,
+            url: url,
+            method: .post,
+            requestPayload: .unprepared(request),
             requestContentType: .json,
             responseContentType: .json,
             interceptors: []
@@ -183,7 +228,9 @@ struct Feature {
     }
 }
 
-let result = await httpClient.call(Feature.featureEndpoint(text: "Hello World"))
+// Call endpoints on their models/domains
+
+let _ = await httpClient.call(Feature.featureEndpoint(text: "Hello World"))
 ```
 
 ## Disclaimer

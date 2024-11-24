@@ -1,109 +1,215 @@
 import Foundation
 
 public enum HTTP {
-    public enum Method: String, Sendable {
-        case get = "GET"
-        case put = "PUT"
-        case post = "POST"
-        case delete = "DELETE"
+    /// HTTP Method.
+    public struct Method: RawRepresentable, Equatable, Hashable, Sendable {
+        public let rawValue: String
+
+        public init(rawValue: String) {
+            self.rawValue = rawValue
+        }
     }
 
-    public enum MimeType: Sendable {
-        case none
-        case custom(String)
-        case json
+    /// HTTP MIME Type.
+    public struct MimeType: RawRepresentable, Equatable, Hashable, Sendable {
+        public let rawValue: String
 
-        internal var value: String? {
-            switch self {
-            case .none: nil
-            case .custom(let value): value
-            case .json: "application/json"
+        public init(rawValue: String) {
+            self.rawValue = rawValue
+        }
+    }
+
+    /// HTTP Header.
+    public struct Header: Equatable, Hashable, Sendable {
+        public let name: String
+        public let value: String
+
+        public init(name: String, value: String) {
+            self.name = name
+            self.value = value
+        }
+    }
+
+    /// HTTP Status (code + description).
+    public struct Status: Sendable {
+        public let codes: [Range<Int>]
+        public let description: String
+
+        public init(codes: [Range<Int>], description: String) {
+            self.codes = codes
+            self.description = description
+        }
+
+        public init(codes: Range<Int>, description: String) {
+            self.codes = [codes]
+            self.description = description
+        }
+
+        public init(code: Int, description: String) {
+            self.codes = [code..<code + 1]
+            self.description = description
+        }
+
+        public func contains(_ code: Int) -> Bool {
+            for range in codes {
+                if range.contains(code) {
+                    return true
+                }
             }
+            return false
         }
     }
 
-    public struct UnsupportedMimeType: Error {}
-
-    public struct Request {
-        public enum Payload {
-            case prepared(Data?)
-            case unprepared(any Encodable)
-        }
-
+    /// HTTP Request.
+    public struct Request: Sendable {
         public var url: URL
         public var method: HTTP.Method
-        public var payload: Payload
-        public var contentType: HTTP.MimeType? = nil
-        public var accept: HTTP.MimeType? = nil
+        public var body: Data?
+        public var headers: [Header]
+
+        public init(
+            url: URL,
+            method: HTTP.Method,
+            body: Data? = nil,
+            headers: [Header] = []
+        ) {
+            self.url = url
+            self.method = method
+            self.body = body
+            self.headers = headers
+        }
     }
 
+    /// HTTP Response.
     public struct Response: Sendable {
-        private let decoder: JSONDecoder
-
         public let statusCode: Int
-        public let headers: [String: String]
+        public let headers: [Header]
         public let body: Data
 
         internal init(
-            decoder: JSONDecoder,
             statusCode: Int,
-            headers: [String: String],
+            headers: [Header],
             body: Data
         ) {
-            self.decoder = decoder
             self.statusCode = statusCode
             self.headers = headers
             self.body = body
         }
 
-        public func decode<T: Decodable>(as mimeType: MimeType) throws -> T {
-            switch mimeType {
-            case .none, .custom:
-                throw HTTP.UnsupportedMimeType()
-
-            case .json:
-                return try decoder.decode(T.self, from: body)
-            }
+        public func parsed<Value>(
+            as _: Value.Type = Value.self,
+            using parser: ResponseParser<Value>
+        ) throws -> Value {
+            try parser.parse(self)
         }
     }
 
-    public enum Failure: Error {
-        case encodingError(any Error)
-        case decodingError(any Error)
-        case preparationError(any Error)
-        case processingError(any Error)
-        case transportError(any Error)
-        case clientError(Response)
-        case serverError(Response)
-        case unexpectedStatusCode(Response)
-        case maxRetryCountReached
-        case canceled
+    /// HTTP Request Payload (HTTP MIME Type for `Content-Type` HTTP Request Header + any HTTP Request body data).
+    public struct RequestPayload: Sendable {
+        public let mimeType: MimeType?
+        public let body: Data?
+
+        public init(
+            mimeType: MimeType?,
+            body: Data?
+        ) {
+            self.mimeType = mimeType
+            self.body = body
+        }
     }
 
+    /// HTTP Response Parser (expected HTTP MIME Type for `Content-Type` HTTP Response Header + HTTP Response parse closure).
+    /// Sets the `Accept` HTTP Request Header to the expected HTTP MIME Type.
+    public struct ResponseParser<Value>: Sendable {
+        public let mimeType: MimeType?
+        public let parse: @Sendable (Response) throws -> Value
+
+        public init(
+            mimeType: MimeType?,
+            type _: Value.Type = Value.self,
+            _ parse: @escaping @Sendable (Response) throws -> Value
+        ) {
+            self.mimeType = mimeType
+            self.parse = parse
+        }
+    }
+
+    /// Transport error.
+    /// Thrown when something went wrong in the network stack trying to send a HTTP Request.
+    public struct TransportError: Error {
+        public let error: any Error
+
+        internal init(_ error: any Error) {
+            self.error = error
+        }
+    }
+
+    /// Max request retry count reached.
+    /// Thrown when the configured max retry count for the `HTTP.Client` was (for some reason) reached.
+    public struct MaxRetryCountReached: Error {}
+
+    /// Unexpected HTTP Response.
+    /// Thrown when the received HTTP Response did not (for some reason) live up to expectations (e.g wrong HTTP Status Code).
+    public struct UnexpectedResponse: Error {
+        public let statusCode: Int
+        public let headers: [Header]
+        public let body: Data
+
+        public init(_ response: Response) {
+            self.statusCode = response.statusCode
+            self.headers = response.headers
+            self.body = response.body
+        }
+
+        public func parsed<Value>(
+            as _: Value.Type = Value.self,
+            using parser: UnexpectedResponseParser<Value>
+        ) throws -> Value {
+            try parser.parse(self)
+        }
+    }
+
+    /// HTTP Unexpected Response Parser.
+    public struct UnexpectedResponseParser<Value>: Sendable {
+        public let parse: @Sendable (UnexpectedResponse) throws -> Value
+
+        public init(
+            type _: Value.Type = Value.self,
+            _ parse: @escaping @Sendable (UnexpectedResponse) throws -> Value
+        ) {
+            self.parse = parse
+        }
+    }
+
+    /// A per-request context.
     public struct Context {
-        public let encoder: JSONEncoder
-        public let decoder: JSONDecoder
+        public let request: Request
+        public let tags: [String: String]
         public let retryCount: Int
     }
 
+    /// An `Interceptor`'s evaluation of a received HTTP Response or HTTP Transport Error.
     public enum Evaluation {
         case retry
         case retryAfter(TimeInterval)
         case proceed
     }
 
+    /// An `Interceptor` that can manipulate outgoing HTTP Requests or incoming HTTP Responses, or act on any thrown HTTP Transport Errors.
     public protocol Interceptor: Sendable {
         func prepare(_ request: inout URLRequest, with context: Context) async throws
-        func handle(_ transportError: any Error, with context: Context) async -> Evaluation
+        func handle(_ transportError: TransportError, with context: Context) async -> Evaluation
         func process(_ response: inout HTTPURLResponse, data: inout Data, with context: Context) async throws -> Evaluation
     }
 
+    /// An `Observer` that is notified about various events during the sending of a HTTP Request.
     public protocol Observer: Sendable {
         func didPrepare(_ request: URLRequest, with context: Context)
-        func didEncounter(_ transportError: any Error, with context: Context)
+        func didEncounter(_ transportError: TransportError, with context: Context)
         func didReceive(_ response: HTTPURLResponse, with context: Context)
     }
 
+    /// A protocol representing something that can send `URLRequests` and receive `HTTPURLResponse` (with `Data`).
     public protocol Session: Sendable {
         func data(for request: URLRequest) async throws -> (Data, HTTPURLResponse)
     }

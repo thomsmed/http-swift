@@ -9,206 +9,32 @@ public enum AuthenticationScheme: Sendable {
 }
 
 public struct ProtectedEndpoint<Resource> {
-    let endpoint: HTTP.Endpoint<Resource>
-    let authenticationScheme: AuthenticationScheme
+    public let url: URL
+    public let method: HTTP.Method
+    public let payload: HTTP.RequestPayload
+    public let parser: HTTP.ResponseParser<Resource>
+    public let authenticationScheme: AuthenticationScheme
+    public let additionalHeaders: [HTTP.Header]
+    public let interceptors: [HTTP.Interceptor]
+    public let tags: [String: String]
 
     public init(
         url: URL,
         method: HTTP.Method,
-        requestPayload: HTTP.Request.Payload,
-        requestContentType: HTTP.MimeType,
-        responseContentType: HTTP.MimeType,
-        emptyResponseStatusCodes: Set<Int>,
+        payload: HTTP.RequestPayload,
+        parser: HTTP.ResponseParser<Resource>,
         authenticationScheme: AuthenticationScheme,
+        additionalHeaders: [HTTP.Header] = [],
         interceptors: [HTTP.Interceptor] = [],
-        adaptor: ((HTTP.Response) throws -> Resource)? = nil
-    ) where Resource == Optional<Decodable> {
-        self.endpoint = HTTP.Endpoint(
-            url: url,
-            method: method,
-            requestPayload: requestPayload,
-            requestContentType: requestContentType,
-            responseContentType: responseContentType,
-            emptyResponseStatusCodes: emptyResponseStatusCodes,
-            interceptors: interceptors,
-            adaptor: adaptor
-        )
-        self.authenticationScheme = authenticationScheme
-    }
-
-    public init(
-        url: URL,
-        method: HTTP.Method,
-        requestPayload: HTTP.Request.Payload,
-        requestContentType: HTTP.MimeType,
-        responseContentType: HTTP.MimeType,
-        emptyResponseStatusCodes: Set<Int>,
-        authenticationScheme: AuthenticationScheme,
-        interceptors: [HTTP.Interceptor] = [],
-        adaptor: @escaping (HTTP.Response) throws -> Resource
+        tags: [String: String] = [:]
     ) {
-        self.endpoint = HTTP.Endpoint(
-            url: url,
-            method: method,
-            requestPayload: requestPayload,
-            requestContentType: requestContentType,
-            responseContentType: responseContentType,
-            emptyResponseStatusCodes: emptyResponseStatusCodes,
-            interceptors: interceptors,
-            adaptor: adaptor
-        )
+        self.url = url
+        self.method = method
+        self.payload = payload
+        self.parser = parser
         self.authenticationScheme = authenticationScheme
-    }
-
-    public init(
-        url: URL,
-        method: HTTP.Method,
-        requestPayload: HTTP.Request.Payload,
-        requestContentType: HTTP.MimeType,
-        responseContentType: HTTP.MimeType,
-        authenticationScheme: AuthenticationScheme,
-        interceptors: [HTTP.Interceptor] = [],
-        adaptor: ((HTTP.Response) throws -> Resource)? = nil
-    ) where Resource: Decodable {
-        self.endpoint = HTTP.Endpoint(
-            url: url,
-            method: method,
-            requestPayload: requestPayload,
-            requestContentType: requestContentType,
-            responseContentType: responseContentType,
-            interceptors: interceptors,
-            adaptor: adaptor
-        )
-        self.authenticationScheme = authenticationScheme
-    }
-
-    public init(
-        url: URL,
-        method: HTTP.Method,
-        requestPayload: HTTP.Request.Payload,
-        requestContentType: HTTP.MimeType,
-        responseContentType: HTTP.MimeType,
-        authenticationScheme: AuthenticationScheme,
-        interceptors: [HTTP.Interceptor] = [],
-        adaptor: @escaping (HTTP.Response) throws -> Resource
-    ) {
-        self.endpoint = HTTP.Endpoint(
-            url: url,
-            method: method,
-            requestPayload: requestPayload,
-            requestContentType: requestContentType,
-            responseContentType: responseContentType,
-            interceptors: interceptors,
-            adaptor: adaptor
-        )
-        self.authenticationScheme = authenticationScheme
-    }
-
-    public init(
-        url: URL,
-        method: HTTP.Method,
-        requestPayload: HTTP.Request.Payload,
-        requestContentType: HTTP.MimeType,
-        authenticationScheme: AuthenticationScheme,
-        interceptors: [HTTP.Interceptor] = []
-    ) where Resource == Void {
-        self.endpoint = HTTP.Endpoint(
-            url: url,
-            method: method,
-            requestPayload: requestPayload,
-            requestContentType: requestContentType,
-            interceptors: interceptors
-        )
-        self.authenticationScheme = authenticationScheme
-    }
-
-    public init(
-        url: URL,
-        method: HTTP.Method,
-        responseContentType: HTTP.MimeType,
-        emptyResponseStatusCodes: Set<Int>,
-        authenticationScheme: AuthenticationScheme,
-        interceptors: [HTTP.Interceptor] = [],
-        adaptor: ((HTTP.Response) throws -> Resource)? = nil
-    ) where Resource == Optional<Decodable> {
-        self.endpoint = HTTP.Endpoint(
-            url: url,
-            method: method,
-            responseContentType: responseContentType,
-            emptyResponseStatusCodes: emptyResponseStatusCodes,
-            interceptors: interceptors,
-            adaptor: adaptor
-        )
-        self.authenticationScheme = authenticationScheme
-    }
-
-    public init(
-        url: URL,
-        method: HTTP.Method,
-        responseContentType: HTTP.MimeType,
-        emptyResponseStatusCodes: Set<Int>,
-        authenticationScheme: AuthenticationScheme,
-        interceptors: [HTTP.Interceptor] = [],
-        adaptor: @escaping (HTTP.Response) throws -> Resource
-    ) {
-        self.endpoint = HTTP.Endpoint(
-            url: url,
-            method: method,
-            responseContentType: responseContentType,
-            emptyResponseStatusCodes: emptyResponseStatusCodes,
-            interceptors: interceptors,
-            adaptor: adaptor
-        )
-        self.authenticationScheme = authenticationScheme
-    }
-
-    public init(
-        url: URL,
-        method: HTTP.Method,
-        responseContentType: HTTP.MimeType,
-        authenticationScheme: AuthenticationScheme,
-        interceptors: [HTTP.Interceptor] = [],
-        adaptor: ((HTTP.Response) throws -> Resource)? = nil
-    ) where Resource: Decodable {
-        self.endpoint = HTTP.Endpoint(
-            url: url,
-            method: method,
-            responseContentType: responseContentType,
-            interceptors: interceptors,
-            adaptor: adaptor
-        )
-        self.authenticationScheme = authenticationScheme
-    }
-
-    public init(
-        url: URL,
-        method: HTTP.Method,
-        responseContentType: HTTP.MimeType,
-        authenticationScheme: AuthenticationScheme,
-        interceptors: [HTTP.Interceptor] = [],
-        adapt: @escaping (HTTP.Response) throws -> Resource
-    ) {
-        self.endpoint = HTTP.Endpoint(
-            url: url,
-            method: method,
-            responseContentType: responseContentType,
-            interceptors: interceptors,
-            adapt: adapt
-        )
-        self.authenticationScheme = authenticationScheme
-    }
-
-    public init(
-        url: URL,
-        method: HTTP.Method,
-        authenticationScheme: AuthenticationScheme,
-        interceptors: [HTTP.Interceptor] = []
-    ) where Resource == Void {
-        self.endpoint = HTTP.Endpoint(
-            url: url,
-            method: method,
-            interceptors: interceptors
-        )
-        self.authenticationScheme = authenticationScheme
+        self.additionalHeaders = additionalHeaders
+        self.interceptors = interceptors
+        self.tags = tags
     }
 }

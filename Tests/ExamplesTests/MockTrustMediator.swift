@@ -2,7 +2,7 @@ import Foundation
 
 import Examples
 
-public final actor MockTrustProvider: TrustProvider {
+public final actor MockTrustMediator: TrustMediator {
     public var mockAccessToken = AccessToken(rawValue: "<some.access.token>")
     public var mockDPoP = DPoP(rawValue: "<some.dpop>")
 

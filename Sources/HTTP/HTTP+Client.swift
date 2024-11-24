@@ -3,18 +3,9 @@ import Foundation
 public extension HTTP {
     final class Client: Sendable {
         private enum SendResult {
-            case success(Response)
+            case success(HTTP.Response)
             case retry
             case retryAfter(TimeInterval)
-            case failure(HTTP.Failure)
-        }
-
-        public struct Request {
-            public var url: URL
-            public var method: HTTP.Method
-            public var body: Data? = nil
-            public var contentType: HTTP.MimeType? = nil
-            public var accept: HTTP.MimeType? = nil
         }
 
         public struct Options: Sendable {
@@ -32,9 +23,6 @@ public extension HTTP {
 
         private let session: any HTTP.Session
 
-        private let encoder: JSONEncoder
-        private let decoder: JSONDecoder
-
         private let observers: [any HTTP.Observer]
         private let interceptors: [any HTTP.Interceptor]
 
@@ -42,15 +30,11 @@ public extension HTTP {
 
         public init(
             session: any HTTP.Session = URLSession.shared,
-            encoder: JSONEncoder = JSONEncoder(),
-            decoder: JSONDecoder = JSONDecoder(),
             observers: [any HTTP.Observer] = [],
             interceptors: [any HTTP.Interceptor] = [],
             options: Options = Options()
         ) {
             self.session = session
-            self.encoder = encoder
-            self.decoder = decoder
             self.observers = observers
             self.interceptors = interceptors
             self.options = options
@@ -59,32 +43,24 @@ public extension HTTP {
         // MARK: Sending
 
         private func send(
-            _ request: Request,
+            _ request: HTTP.Request,
             interceptors: [HTTP.Interceptor],
             context: HTTP.Context
-        ) async -> SendResult {
+        ) async throws -> SendResult {
             var urlRequest = URLRequest(url: request.url)
             urlRequest.httpMethod = request.method.rawValue
+            urlRequest.httpBody = request.body
 
-            if let contentType = request.contentType {
-                urlRequest.setValue(contentType.value, forHTTPHeaderField: "Content-Type")
-                urlRequest.httpBody = request.body
+            for header in request.headers {
+                urlRequest.setValue(header.value, forHTTPHeaderField: header.name)
             }
 
-            if let accept = request.accept {
-                urlRequest.setValue(accept.value, forHTTPHeaderField: "Accept")
-            }
+            try Task.checkCancellation()
 
-            do {
-                for interceptor in interceptors {
-                    try await interceptor.prepare(&urlRequest, with: context)
+            for interceptor in interceptors {
+                try await interceptor.prepare(&urlRequest, with: context)
 
-                    if Task.isCancelled {
-                        return .failure(.canceled)
-                    }
-                }
-            } catch {
-                return .failure(.preparationError(error))
+                try Task.checkCancellation()
             }
 
             for observer in self.observers {
@@ -94,86 +70,75 @@ public extension HTTP {
             var (data, httpURLResponse): (Data, HTTPURLResponse)
             do {
                 (data, httpURLResponse) = try await session.data(for: urlRequest)
+            } catch let cancellationError as CancellationError {
+                throw cancellationError
             } catch {
+                let transportError = HTTP.TransportError(error)
+
                 for observer in self.observers {
-                    observer.didEncounter(error, with: context)
+                    observer.didEncounter(transportError, with: context)
                 }
 
                 // Give the last interceptor the opportunity to handle the error first.
                 for interceptor in interceptors.reversed() {
-                    switch await interceptor.handle(error, with: context) {
-                        case .retry:
-                            return .retry
-                        case .retryAfter(let timeInterval):
-                            return .retryAfter(timeInterval)
-                        case .proceed:
-                            break
-                    }
+                    let evaluation = await interceptor.handle(transportError, with: context)
 
-                    if Task.isCancelled {
-                        return .failure(.canceled)
+                    try Task.checkCancellation()
+
+                    switch evaluation {
+                    case .retry:
+                        return .retry
+                    case .retryAfter(let timeInterval):
+                        return .retryAfter(timeInterval)
+                    case .proceed:
+                        break
                     }
                 }
 
-                return .failure(.transportError(error))
+                throw transportError
             }
 
             for observer in self.observers {
                 observer.didReceive(httpURLResponse, with: context)
             }
 
-            do {
-                // Give the last interceptor the opportunity to process the response first.
-                for interceptor in interceptors.reversed() {
-                    switch try await interceptor.process(&httpURLResponse, data: &data, with: context) {
-                        case .retry:
-                            return .retry
-                        case .retryAfter(let timeInterval):
-                            return .retryAfter(timeInterval)
-                        case .proceed:
-                            break
-                    }
+            // Give the last interceptor the opportunity to process the response first.
+            for interceptor in interceptors.reversed() {
+                let evaluation = try await interceptor.process(&httpURLResponse, data: &data, with: context)
 
-                    if Task.isCancelled {
-                        return .failure(.canceled)
-                    }
+                try Task.checkCancellation()
+
+                switch evaluation {
+                case .retry:
+                    return .retry
+                case .retryAfter(let timeInterval):
+                    return .retryAfter(timeInterval)
+                case .proceed:
+                    break
                 }
-            } catch {
-                return .failure(.processingError(error))
             }
 
             let headers = httpURLResponse.allHeaderFields.keys
-                .reduce(into: [String: String]()) { headers, key in
-                    guard let headerField = key as? String else {
+                .reduce(into: [Header]()) { headers, key in
+                    guard
+                        let headerName = key as? String,
+                        let headerValue = httpURLResponse.value(forHTTPHeaderField: headerName)
+                    else {
                         return
                     }
 
-                    headers[headerField] = httpURLResponse.value(forHTTPHeaderField: headerField)
+                    headers.append(Header(name: headerName, value: headerValue))
                 }
 
+            try Task.checkCancellation()
+
             let response = Response(
-                decoder: decoder,
                 statusCode: httpURLResponse.statusCode,
                 headers: headers,
                 body: data
             )
 
-            switch httpURLResponse.statusCode {
-                case 200..<300:
-                    return .success(response)
-
-                case 300..<400:
-                    return .success(response)
-
-                case 400..<500:
-                    return .failure(.clientError(response))
-
-                case 500..<600:
-                    return .failure(.serverError(response))
-
-                default:
-                    return .failure(.unexpectedStatusCode(response))
-            }
+            return .success(response)
         }
     }
 }
@@ -182,106 +147,55 @@ public extension HTTP {
 
 private extension HTTP.Client {
     private func sendAndHandleRetry(
-        _ request: Request,
+        _ request: HTTP.Request,
         interceptors: [HTTP.Interceptor],
         context: HTTP.Context
-    ) async -> Result<HTTP.Response, HTTP.Failure> {
-        let result = await send(
+    ) async throws -> HTTP.Response {
+        let result = try await send(
             request,
             interceptors: interceptors,
             context: context
         )
 
         switch result {
-            case .success(let response):
-                return .success(response)
+        case .success(let response):
+            return response
 
-            case .failure(let error):
-                return .failure(error)
+        case .retry:
+            guard context.retryCount < options.maxRetryCount else {
+                throw HTTP.MaxRetryCountReached()
+            }
 
-            case .retry:
-                guard context.retryCount < options.maxRetryCount else {
-                    return .failure(.maxRetryCountReached)
-                }
-                if Task.isCancelled {
-                    return .failure(.canceled)
-                }
-                let context = HTTP.Context(
-                    encoder: context.encoder,
-                    decoder: context.decoder,
-                    retryCount: context.retryCount + 1
-                )
-                return await sendAndHandleRetry(
-                    request,
-                    interceptors: interceptors,
-                    context: context
-                )
+            let context = HTTP.Context(
+                request: request,
+                tags: context.tags,
+                retryCount: context.retryCount + 1
+            )
 
-            case .retryAfter(let timeInterval):
-                guard context.retryCount < options.maxRetryCount else {
-                    return .failure(.maxRetryCountReached)
-                }
-                do {
-                    try await Task.sleep(for: .seconds(timeInterval))
-                } catch {
-                    // Task canceled.
-                }
-                if Task.isCancelled {
-                    return .failure(.canceled)
-                }
-                let context = HTTP.Context(
-                    encoder: context.encoder,
-                    decoder: context.decoder,
-                    retryCount: context.retryCount + 1
-                )
-                return await sendAndHandleRetry(
-                    request,
-                    interceptors: interceptors,
-                    context: context
-                )
-        }
-    }
-}
+            return try await sendAndHandleRetry(
+                request,
+                interceptors: interceptors,
+                context: context
+            )
 
-// MARK: Sending (internal) Requests
+        case .retryAfter(let timeInterval):
+            guard context.retryCount < options.maxRetryCount else {
+                throw HTTP.MaxRetryCountReached()
+            }
 
-private extension HTTP.Client {
-    private func makeContextAndSend(
-        _ request: Request,
-        interceptors: [HTTP.Interceptor]
-    ) async -> Result<HTTP.Response, HTTP.Failure> {
-        // Apply per-request interceptors last,
-        // having per-request interceptors prepare outgoing requests after per-client interceptors.
-        // And having per-request interceptors process incoming responses before per-client interceptors.
-        let interceptors = self.interceptors + interceptors
+            try await Task.sleep(for: .seconds(timeInterval))
 
-        let context = HTTP.Context(
-            encoder: encoder,
-            decoder: decoder,
-            retryCount: 0
-        )
+            let context = HTTP.Context(
+                request: request,
+                tags: context.tags,
+                retryCount: context.retryCount + 1
+            )
 
-        return await sendAndHandleRetry(
-            request,
-            interceptors: interceptors,
-            context: context
-        )
-    }
-}
-
-// MARK: Encoding
-
-public extension HTTP.Client {
-    func encode<RequestBody: Encodable>(
-        _ requestBody: RequestBody,
-        as requestContentType: HTTP.MimeType
-    ) throws -> Data {
-        switch requestContentType {
-        case .none, .custom:
-            throw HTTP.UnsupportedMimeType()
-
-        case .json:
-            return try encoder.encode(requestBody)
+            return try await sendAndHandleRetry(
+                request,
+                interceptors: interceptors,
+                context: context
+            )
         }
     }
 }
@@ -291,36 +205,24 @@ public extension HTTP.Client {
 public extension HTTP.Client {
     func send(
         _ request: HTTP.Request,
-        interceptors: [HTTP.Interceptor]
-    ) async -> Result<HTTP.Response, HTTP.Failure> {
-        let body: Data?
-        switch request.payload {
-        case .prepared(let data):
-            body = data
+        interceptors: [HTTP.Interceptor] = [],
+        tags: [String: String] = [:]
+    ) async throws -> HTTP.Response {
+        // Apply per-request interceptors last,
+        // having per-request interceptors prepare outgoing requests after per-client interceptors.
+        // And having per-request interceptors process incoming responses before per-client interceptors.
+        let interceptors = self.interceptors + interceptors
 
-        case .unprepared(let value):
-            if let contentType = request.contentType {
-                do {
-                    body = try encode(value, as: contentType)
-                } catch {
-                    return .failure(.encodingError(error))
-                }
-            } else {
-                body = nil
-            }
-        }
-
-        let request = Request(
-            url: request.url,
-            method: request.method,
-            body: body,
-            contentType: request.contentType,
-            accept: request.accept
+        let context = HTTP.Context(
+            request: request,
+            tags: tags,
+            retryCount: 0
         )
 
-        return await makeContextAndSend(
+        return try await sendAndHandleRetry(
             request,
-            interceptors: interceptors
+            interceptors: interceptors,
+            context: context
         )
     }
 }

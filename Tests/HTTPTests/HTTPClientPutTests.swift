@@ -4,7 +4,7 @@ import Testing
 import HTTP
 
 @Suite struct HTTPClientPutTests {
-    @Test func test_request_put_withEmptyRequestBody_returnEmptyResponseBody() async throws {
+    @Test func test_fetch_putWithEmptyRequestBody_returnEmptyResponseBody() async throws {
         let url = URL(string: "https://example.ios")!
         let session = MockSession()
         let httpClient = HTTP.Client(session: session)
@@ -19,23 +19,20 @@ import HTTP
             )!)
         }
 
-        let result = await httpClient.fetch(
+        let _ = try await httpClient.fetch(
+            Void.self,
             url: url,
             method: .put,
-            interceptors: []
+            payload: .empty(),
+            parser: .void()
         )
-
-        _ = try result.get()
     }
 
-    @Test func test_request_put_withEmptyRequestBody_returnNonEmptyResponseBody() async throws {
+    @Test func test_fetch_putWithEmptyRequestBody_returnNonEmptyResponseBody() async throws {
         let url = URL(string: "https://example.ios")!
         let session = MockSession()
+        let httpClient = HTTP.Client(session: session)
         let encoder = JSONEncoder()
-        let httpClient = HTTP.Client(
-            session: session,
-            encoder: encoder
-        )
 
         struct ResponseBody: Codable, Equatable {
             let message: String
@@ -53,27 +50,22 @@ import HTTP
             )!)
         }
 
-        let result = await httpClient.fetch(
+        let responseBody = try await httpClient.fetch(
             ResponseBody.self,
             url: url,
             method: .put,
-            responseContentType: .json,
-            interceptors: []
+            payload: .empty(),
+            parser: .json()
         )
-
-        let responseBody = try result.get()
 
         #expect(responseBody == expectedResponseBody)
     }
 
-    @Test func test_request_put_withNonEmptyRequestBody_returnEmptyResponseBody() async throws {
+    @Test func test_fetch_putWithNonEmptyRequestBody_returnEmptyResponseBody() async throws {
         let url = URL(string: "https://example.ios")!
         let session = MockSession()
+        let httpClient = HTTP.Client(session: session)
         let decoder = JSONDecoder()
-        let httpClient = HTTP.Client(
-            session: session,
-            decoder: decoder
-        )
 
         struct RequestBody: Codable, Equatable {
             let message: String
@@ -95,25 +87,20 @@ import HTTP
 
         let requestBody = RequestBody(message: "Hello World")
 
-        let result = await httpClient.fetch(
+        let _ = try await httpClient.fetch(
+            Void.self,
             url: url,
             method: .put,
-            requestPayload: .unprepared(requestBody),
-            requestContentType: .json,
-            interceptors: []
+            payload: .json(from: requestBody),
+            parser: .void()
         )
-
-        _ = try result.get()
     }
 
-    @Test func test_request_put_withNonEmptyRequestBody_returnNonEmptyResponseBody() async throws {
+    @Test func test_fetch_putWithNonEmptyRequestBody_returnNonEmptyResponseBody() async throws {
         let url = URL(string: "https://example.ios")!
-        let decoder = JSONDecoder()
         let session = MockSession()
-        let httpClient = HTTP.Client(
-            session: session,
-            decoder: decoder
-        )
+        let httpClient = HTTP.Client(session: session)
+        let decoder = JSONDecoder()
 
         struct RequestBody: Codable, Equatable {
             let message: String
@@ -142,29 +129,22 @@ import HTTP
 
         let requestBody = RequestBody(message: "Hello World")
 
-        let result = await httpClient.fetch(
+        let responseBody = try await httpClient.fetch(
             ResponseBody.self,
             url: url,
             method: .put,
-            requestPayload: .unprepared(requestBody),
-            requestContentType: .json,
-            responseContentType: .json,
-            interceptors: []
+            payload: .json(from: requestBody),
+            parser: .json()
         )
-
-        let responseBody = try result.get()
 
         #expect(responseBody == expectedResponseBody)
     }
 
-    @Test func test_request_put_withEmptyRequestBodyAndEmptyResponseStatusCodes_returnNonEmptyResponseBody() async throws {
+    @Test func test_fetch_putWithEmptyRequestBodyAndEmptyResponseStatusCodes_returnNonEmptyResponseBody() async throws {
         let url = URL(string: "https://example.ios")!
         let session = MockSession()
+        let httpClient = HTTP.Client(session: session)
         let encoder = JSONEncoder()
-        let httpClient = HTTP.Client(
-            session: session,
-            encoder: encoder
-        )
 
         struct ResponseBody: Codable, Equatable {
             let message: String
@@ -182,29 +162,23 @@ import HTTP
             )!)
         }
 
-        let result = await httpClient.fetch(
-            ResponseBody.self,
+        let responseBody = try await httpClient.fetch(
+            ResponseBody?.self,
             url: url,
             method: .put,
-            responseContentType: .json,
-            emptyResponseStatusCodes: [204],
-            interceptors: []
+            payload: .empty(),
+            parser: .json(ignoring: .noContent)
         )
-
-        let responseBody = try result.get()
 
         #expect(responseBody != nil)
         #expect(responseBody == expectedResponseBody)
     }
 
-    @Test func test_request_put_withEmptyRequestBodyAndEmptyResponseStatusCodes_returnEmptyResponseBody() async throws {
+    @Test func test_fetch_putWithEmptyRequestBodyAndEmptyResponseStatusCodes_returnEmptyResponseBody() async throws {
         let url = URL(string: "https://example.ios")!
         let session = MockSession()
+        let httpClient = HTTP.Client(session: session)
         let encoder = JSONEncoder()
-        let httpClient = HTTP.Client(
-            session: session,
-            encoder: encoder
-        )
 
         struct ResponseBody: Codable, Equatable {
             let message: String
@@ -222,28 +196,22 @@ import HTTP
             )!)
         }
 
-        let result = await httpClient.fetch(
-            ResponseBody.self,
+        let responseBody = try await httpClient.fetch(
+            ResponseBody?.self,
             url: url,
             method: .put,
-            responseContentType: .json,
-            emptyResponseStatusCodes: [204],
-            interceptors: []
+            payload: .empty(),
+            parser: .json(ignoring: .noContent)
         )
-
-        let responseBody = try result.get()
 
         #expect(responseBody == nil)
     }
 
-    @Test func test_request_put_withNonEmptyRequestBodyAndEmptyResponseStatusCodes_returnNonEmptyResponseBody() async throws {
+    @Test func test_fetch_putWithNonEmptyRequestBodyIgnoringNoContent_returnNonEmptyResponseBody() async throws {
         let url = URL(string: "https://example.ios")!
-        let decoder = JSONDecoder()
         let session = MockSession()
-        let httpClient = HTTP.Client(
-            session: session,
-            decoder: decoder
-        )
+        let httpClient = HTTP.Client(session: session)
+        let decoder = JSONDecoder()
 
         struct RequestBody: Codable, Equatable {
             let message: String
@@ -272,31 +240,23 @@ import HTTP
 
         let requestBody = RequestBody(message: "Hello World")
 
-        let result = await httpClient.fetch(
-            ResponseBody.self,
+        let responseBody = try await httpClient.fetch(
+            ResponseBody?.self,
             url: url,
             method: .put,
-            requestPayload: .unprepared(requestBody),
-            requestContentType: .json,
-            responseContentType: .json,
-            emptyResponseStatusCodes: [204],
-            interceptors: []
+            payload: .json(from: requestBody),
+            parser: .json(ignoring: .noContent)
         )
-
-        let responseBody = try result.get()
 
         #expect(responseBody != nil)
         #expect(responseBody == expectedResponseBody)
     }
 
-    @Test func test_request_put_withNonEmptyRequestBodyAndEmptyResponseStatusCodes_returnEmptyResponseBody() async throws {
+    @Test func test_fetch_putWithNonEmptyRequestBodyAndEmptyResponseStatusCodes_returnEmptyResponseBody() async throws {
         let url = URL(string: "https://example.ios")!
-        let decoder = JSONDecoder()
         let session = MockSession()
-        let httpClient = HTTP.Client(
-            session: session,
-            decoder: decoder
-        )
+        let httpClient = HTTP.Client(session: session)
+        let decoder = JSONDecoder()
 
         struct RequestBody: Codable, Equatable {
             let message: String
@@ -323,23 +283,18 @@ import HTTP
 
         let requestBody = RequestBody(message: "Hello World")
 
-        let result = await httpClient.fetch(
-            ResponseBody.self,
+        let responseBody = try await httpClient.fetch(
+            ResponseBody?.self,
             url: url,
             method: .put,
-            requestPayload: .unprepared(requestBody),
-            requestContentType: .json,
-            responseContentType: .json,
-            emptyResponseStatusCodes: [204],
-            interceptors: []
+            payload: .json(from: requestBody),
+            parser: .json(ignoring: .noContent)
         )
-
-        let responseBody = try result.get()
 
         #expect(responseBody == nil)
     }
 
-    @Test func test_request_put_returnClientError() async throws {
+    @Test func test_fetch_put_throwsUnexpectedResponse() async throws {
         let url = URL(string: "https://example.ios")!
         let session = MockSession()
         let httpClient = HTTP.Client(session: session)
@@ -360,30 +315,23 @@ import HTTP
             )!)
         }
 
-        let result = await httpClient.fetch(
-            url: url,
-            method: .put,
-            interceptors: []
-        )
-
-        #expect {
-            try result.get()
+        await #expect {
+            try await httpClient.fetch(
+                Void.self,
+                url: url,
+                method: .put,
+                payload: .empty(),
+                parser: .void()
+            )
         } throws: { error in
-            switch error {
-                case let httpFailure as HTTP.Failure:
-                    switch httpFailure {
-                        case let .clientError(response):
-                            return try response.decode(as: .json) == expectedErrorBody
-                        default:
-                            return false
-                    }
-                default:
-                    return false
+            guard let unexpectedResponse = error as? HTTP.UnexpectedResponse else {
+                return false
             }
+            return try unexpectedResponse.parsed(using: .json()) == expectedErrorBody
         }
     }
 
-    @Test func test_request_put_returnClientErrorWithData() async throws {
+    @Test func test_fetch_put_throwsUnexpectedResponseWithData() async throws {
         let url = URL(string: "https://example.ios")!
         let session = MockSession()
         let httpClient = HTTP.Client(session: session)
@@ -404,26 +352,19 @@ import HTTP
             )!)
         }
 
-        let result = await httpClient.fetch(
-            url: url,
-            method: .put,
-            interceptors: []
-        )
-
-        #expect {
-            try result.get()
+        await #expect {
+            try await httpClient.fetch(
+                Void.self,
+                url: url,
+                method: .put,
+                payload: .empty(),
+                parser: .void()
+            )
         } throws: { error in
-            switch error {
-                case let httpFailure as HTTP.Failure:
-                    switch httpFailure {
-                        case let .clientError(response):
-                            return response.body == expectedErrorResponseData
-                        default:
-                            return false
-                    }
-                default:
-                    return false
+            guard let unexpectedResponse = error as? HTTP.UnexpectedResponse else {
+                return false
             }
+            return unexpectedResponse.body == expectedErrorResponseData
         }
     }
 }

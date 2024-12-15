@@ -4,7 +4,7 @@ import Testing
 import HTTP
 
 @Suite struct HTTPClientRetryTests {
-    @Test func test_request_withClientRetryInterceptor_retriesRequest() async throws {
+    @Test func test_fetch_withClientRetryInterceptor_retriesRequest() async throws {
         let url = URL(string: "https://example.ios")!
         let session = MockSession()
         let maxRetryCount = 5
@@ -33,24 +33,20 @@ import HTTP
             )!)
         }
 
-        let result = await httpClient.fetch(
+        let responseBody = try await httpClient.fetch(
             String.self,
             url: url,
             method: .post,
-            requestPayload: .unprepared(expectedResponseBody),
-            requestContentType: .json,
-            responseContentType: .json,
-            interceptors: []
+            payload: .json(from: expectedResponseBody),
+            parser: .json()
         )
-
-        let responseBody = try result.get()
 
         #expect(responseBody == expectedResponseBody)
         #expect(retryInterceptor.numberOfErrorsHandled == 0)
         #expect(retryInterceptor.numberOfResponsesProcessed == 2)
     }
 
-    @Test func test_request_withRequestRetryInterceptor_retriesRequest() async throws {
+    @Test func test_fetch_withRequestRetryInterceptor_retriesRequest() async throws {
         let url = URL(string: "https://example.ios")!
         let session = MockSession()
         let retryInterceptor = RetryInterceptor(
@@ -73,26 +69,23 @@ import HTTP
             )!)
         }
 
-        let result = await httpClient.fetch(
+        let responseBody = try await httpClient.fetch(
             String.self,
             url: url,
             method: .post,
-            requestPayload: .unprepared(expectedResponseBody),
-            requestContentType: .json,
-            responseContentType: .json,
+            payload: .json(from: expectedResponseBody),
+            parser: .json(),
             interceptors: [
                 retryInterceptor
             ]
         )
-
-        let responseBody = try result.get()
 
         #expect(responseBody == expectedResponseBody)
         #expect(retryInterceptor.numberOfErrorsHandled == 0)
         #expect(retryInterceptor.numberOfResponsesProcessed == 2)
     }
 
-    @Test func test_request_withClientAndRequestRetryInterceptor_retriesRequest() async throws {
+    @Test func test_fetch_withClientAndRequestRetryInterceptor_retriesRequest() async throws {
         let url = URL(string: "https://example.ios")!
         let session = MockSession()
         let clientRetryInterceptor = RetryInterceptor(
@@ -122,19 +115,16 @@ import HTTP
             )!)
         }
 
-        let result = await httpClient.fetch(
+        let responseBody = try await httpClient.fetch(
             String.self,
             url: url,
             method: .post,
-            requestPayload: .unprepared(expectedResponseBody),
-            requestContentType: .json,
-            responseContentType: .json,
+            payload: .json(from: expectedResponseBody),
+            parser: .json(),
             interceptors: [
                 requestRetryInterceptor
             ]
         )
-
-        let responseBody = try result.get()
 
         // Per-request interceptors processes incoming responses first,
         // hence retrying requests causes per-request to process responses more times than per-client interceptors.
@@ -145,7 +135,7 @@ import HTTP
         #expect(requestRetryInterceptor.numberOfResponsesProcessed == 3)
     }
 
-    @Test func test_request_withClientAndRequestRetryInterceptor_retriesRequestMultipleTimes() async throws {
+    @Test func test_fetch_withClientAndRequestRetryInterceptor_retriesRequestMultipleTimes() async throws {
         let url = URL(string: "https://example.ios")!
         let session = MockSession()
         let clientRetryInterceptor = RetryInterceptor(
@@ -175,19 +165,16 @@ import HTTP
             )!)
         }
 
-        let result = await httpClient.fetch(
+        let responseBody = try await httpClient.fetch(
             String.self,
             url: url,
             method: .post,
-            requestPayload: .unprepared(expectedResponseBody),
-            requestContentType: .json,
-            responseContentType: .json,
+            payload: .json(from: expectedResponseBody),
+            parser: .json(),
             interceptors: [
                 requestRetryInterceptor
             ]
         )
-
-        let responseBody = try result.get()
 
         // Per-request interceptors processes incoming responses first,
         // hence retrying requests causes per-request to process responses more times than per-client interceptors.
@@ -198,7 +185,7 @@ import HTTP
         #expect(requestRetryInterceptor.numberOfResponsesProcessed == 5)
     }
 
-    @Test func test_request_withClientAndRequestRetryInterceptor_retriesRequestAndFailsWithMaxRetryCountReachedError() async throws {
+    @Test func test_fetch_withClientAndRequestRetryInterceptor_retriesRequestAndThrowsMaxRetryCountReached() async throws {
         let url = URL(string: "https://example.ios")!
         let session = MockSession()
         let maxRetryCount = 5
@@ -231,31 +218,23 @@ import HTTP
             )!)
         }
 
-        let result = await httpClient.fetch(
-            String.self,
-            url: url,
-            method: .post,
-            requestPayload: .unprepared(expectedResponseBody),
-            requestContentType: .json,
-            responseContentType: .json,
-            interceptors: [
-                requestRetryInterceptor
-            ]
-        )
-
-        #expect {
-            try result.get()
+        await #expect {
+            try await httpClient.fetch(
+                String.self,
+                url: url,
+                method: .post,
+                payload: .json(from: expectedResponseBody),
+                parser: .json(),
+                interceptors: [
+                    requestRetryInterceptor
+                ]
+            )
         } throws: { error in
-            guard let httpFailure = error as? HTTP.Failure else {
+            guard error is HTTP.MaxRetryCountReached else {
                 return false
             }
 
-            switch httpFailure {
-                case .maxRetryCountReached:
-                    return true
-                default:
-                    return false
-            }
+            return true
         }
 
         // Per-request interceptors processes incoming responses first,
@@ -291,7 +270,7 @@ private final class RetryInterceptor: HTTP.Interceptor, @unchecked Sendable {
         // No-op
     }
 
-    func handle(_ transportError: any Error, with context: HTTP.Context) async -> HTTP.Evaluation {
+    func handle(_ transportError: HTTP.TransportError, with context: HTTP.Context) async -> HTTP.Evaluation {
         defer { numberOfErrorsHandled += 1 }
         if numberOfErrorsHandled < numberOfErrorsToRetry {
             return .retry

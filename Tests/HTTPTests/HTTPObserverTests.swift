@@ -4,7 +4,7 @@ import Testing
 import HTTP
 
 @Suite struct HTTPObserverTests {
-    @Test func test_request_post_withSingleClientObserver_observesSuccessfulResponse() async throws {
+    @Test func test_fetch_postWithSingleClientObserver_observesSuccessfulResponse() async throws {
         let url = URL(string: "https://example.ios")!
         let session = MockSession()
         let countingObserver = CountingObserver()
@@ -27,17 +27,13 @@ import HTTP
             )!)
         }
 
-        let result = await httpClient.fetch(
+        let responseBody = try await httpClient.fetch(
             String.self,
             url: url,
             method: .post,
-            requestPayload: .unprepared(expectedResponseBody),
-            requestContentType: .json,
-            responseContentType: .json,
-            interceptors: []
+            payload: .json(from: expectedResponseBody),
+            parser: .json()
         )
-
-        let responseBody = try result.get()
 
         #expect(responseBody == expectedResponseBody)
         #expect(countingObserver.numberOfDidPrepare == 1)
@@ -45,7 +41,7 @@ import HTTP
         #expect(countingObserver.numberOfDidReceive == 1)
     }
 
-    @Test func test_request_post_withTwoClientObservers_observesSuccessfulResponse() async throws {
+    @Test func test_fetch_postWithTwoClientObservers_observesSuccessfulResponse() async throws {
         let url = URL(string: "https://example.ios")!
         let session = MockSession()
         let countingObserver = CountingObserver()
@@ -69,17 +65,13 @@ import HTTP
             )!)
         }
 
-        let result = await httpClient.fetch(
+        let responseBody = try await httpClient.fetch(
             String.self,
             url: url,
             method: .post,
-            requestPayload: .unprepared(expectedResponseBody),
-            requestContentType: .json,
-            responseContentType: .json,
-            interceptors: []
+            payload: .json(from: expectedResponseBody),
+            parser: .json()
         )
-
-        let responseBody = try result.get()
 
         #expect(responseBody == expectedResponseBody)
         #expect(countingObserver.numberOfDidPrepare == 2)
@@ -99,7 +91,7 @@ private final class CountingObserver: HTTP.Observer, @unchecked Sendable {
         numberOfDidPrepare += 1
     }
 
-    func didEncounter(_ transportError: any Error, with context: HTTP.Context) {
+    func didEncounter(_ transportError: HTTP.TransportError, with context: HTTP.Context) {
         numberOfDidPrepare += 1
     }
 

@@ -15,12 +15,9 @@ private extension URL {
 
 @Suite struct HTTPEndpointTests {
     @Test func test_call_endpoint() async throws {
-        let decoder = JSONDecoder()
         let session = MockSession()
-        let httpClient = HTTP.Client(
-            session: session,
-            decoder: decoder
-        )
+        let httpClient = HTTP.Client(session: session)
+        let decoder = JSONDecoder()
 
         struct RequestBody: Codable, Equatable {
             let message: String
@@ -59,24 +56,19 @@ private extension URL {
         let endpoint = HTTP.Endpoint<ResponseBody>(
             url: url,
             method: .post,
-            requestPayload: .unprepared(requestBody),
-            requestContentType: .json,
-            responseContentType: .json,
-            interceptors: []
+            payload: try .json(from: requestBody),
+            parser: .json()
         )
 
-        let responseBody = try await httpClient.call(endpoint).get()
+        let responseBody = try await httpClient.call(endpoint)
 
         #expect(responseBody == expectedResponseBody)
     }
 
     @Test func test_call_staticallyDefinedEndpoint() async throws {
-        let decoder = JSONDecoder()
         let session = MockSession()
-        let httpClient = HTTP.Client(
-            session: session,
-            decoder: decoder
-        )
+        let httpClient = HTTP.Client(session: session)
+        let decoder = JSONDecoder()
 
         struct Feature {
             struct RequestBody: Codable, Equatable {
@@ -99,13 +91,11 @@ private extension URL {
 
                 let requestBody = RequestBody(message: message)
 
-                return HTTP.Endpoint<ResponseBody>(
+                return HTTP.Endpoint(
                     url: url,
                     method: .post,
-                    requestPayload: .unprepared(requestBody),
-                    requestContentType: .json,
-                    responseContentType: .json,
-                    interceptors: []
+                    payload: (try? .json(from: requestBody)) ?? .empty(),
+                    parser: .json()
                 )
             }
         }
@@ -127,18 +117,15 @@ private extension URL {
             )!)
         }
 
-        let responseBody = try await httpClient.call(Feature.helloWorld(message: "Hello World")).get()
+        let responseBody = try await httpClient.call(Feature.helloWorld(message: "Hello World"))
 
         #expect(responseBody == expectedResponseBody)
     }
 
-    @Test func test_call_endpoint_withAdaptor() async throws {
-        let decoder = JSONDecoder()
+    @Test func test_call_endpointWithCustomParser() async throws {
         let session = MockSession()
-        let httpClient = HTTP.Client(
-            session: session,
-            decoder: decoder
-        )
+        let httpClient = HTTP.Client(session: session)
+        let decoder = JSONDecoder()
 
         struct RequestBody: Codable, Equatable {
             let message: String
@@ -177,26 +164,21 @@ private extension URL {
         let endpoint = HTTP.Endpoint<ResponseBody>(
             url: url,
             method: .post,
-            requestPayload: .unprepared(requestBody),
-            requestContentType: .json,
-            responseContentType: .json,
-            interceptors: []
-        ) { response in
-            try response.decode(as: .json)
-        }
+            payload: (try? .json(from: requestBody)) ?? .empty(),
+            parser: HTTP.ResponseParser(mimeType: nil) { response in
+                try decoder.decode(ResponseBody.self, from: response.body)
+            }
+        )
 
-        let responseBody = try await httpClient.call(endpoint).get()
+        let responseBody = try await httpClient.call(endpoint)
 
         #expect(responseBody == expectedResponseBody)
     }
 
-    @Test func test_call_staticallyDefinedEndpoint_withAdaptor() async throws {
-        let decoder = JSONDecoder()
+    @Test func test_call_staticallyDefinedEndpointWithCustomParser() async throws {
         let session = MockSession()
-        let httpClient = HTTP.Client(
-            session: session,
-            decoder: decoder
-        )
+        let httpClient = HTTP.Client(session: session)
+        let decoder = JSONDecoder()
 
         struct Feature {
             struct RequestBody: Codable, Equatable {
@@ -219,16 +201,15 @@ private extension URL {
 
                 let requestBody = RequestBody(message: message)
 
-                return HTTP.Endpoint<ResponseBody>(
+                return HTTP.Endpoint(
                     url: url,
                     method: .post,
-                    requestPayload: .unprepared(requestBody),
-                    requestContentType: .json,
-                    responseContentType: .json,
-                    interceptors: []
-                ) { response in
-                    try response.decode(as: .json)
-                }
+                    payload: (try? .json(from: requestBody)) ?? .empty(),
+                    parser: HTTP.ResponseParser(mimeType: nil) { response in
+                        let decoder = JSONDecoder()
+                        return try decoder.decode(ResponseBody.self, from: response.body)
+                    }
+                )
             }
         }
 
@@ -249,18 +230,15 @@ private extension URL {
             )!)
         }
 
-        let responseBody = try await httpClient.call(Feature.helloWorld(message: "Hello World")).get()
+        let responseBody = try await httpClient.call(Feature.helloWorld(message: "Hello World"))
 
         #expect(responseBody == expectedResponseBody)
     }
 
-    @Test func test_call_endpoint_withToStringAdaptor() async throws {
-        let decoder = JSONDecoder()
+    @Test func test_call_endpointWithToStringCustomParser() async throws {
         let session = MockSession()
-        let httpClient = HTTP.Client(
-            session: session,
-            decoder: decoder
-        )
+        let httpClient = HTTP.Client(session: session)
+        let decoder = JSONDecoder()
 
         struct RequestBody: Codable, Equatable {
             let message: String
@@ -299,30 +277,25 @@ private extension URL {
         let endpoint = HTTP.Endpoint<String>(
             url: url,
             method: .post,
-            requestPayload: .unprepared(requestBody),
-            requestContentType: .json,
-            responseContentType: .json,
-            interceptors: []
-        ) { response in
-            guard let responseString = String(data: response.body, encoding: .utf8) else {
-                throw DecodingError.dataCorrupted(.init(codingPath: [], debugDescription: ""))
+            payload: (try? .json(from: requestBody)) ?? .empty(),
+            parser: HTTP.ResponseParser(mimeType: nil) { response in
+                guard let responseString = String(data: response.body, encoding: .utf8) else {
+                    throw DecodingError.dataCorrupted(.init(codingPath: [], debugDescription: ""))
+                }
+                return responseString
             }
-            return responseString
-        }
+        )
 
-        let responseString = try await httpClient.call(endpoint).get()
+        let responseString = try await httpClient.call(endpoint)
         let responseBody = try decoder.decode(ResponseBody.self, from: Data(responseString.utf8))
 
         #expect(responseBody == expectedResponseBody)
     }
 
-    @Test func test_call_staticallyDefinedEndpoint_withToStringAdaptor() async throws {
-        let decoder = JSONDecoder()
+    @Test func test_call_staticallyDefinedEndpointWithToStringCustomParser() async throws {
         let session = MockSession()
-        let httpClient = HTTP.Client(
-            session: session,
-            decoder: decoder
-        )
+        let httpClient = HTTP.Client(session: session)
+        let decoder = JSONDecoder()
 
         struct Feature {
             struct RequestBody: Codable, Equatable {
@@ -345,19 +318,17 @@ private extension URL {
 
                 let requestBody = RequestBody(message: message)
 
-                return HTTP.Endpoint<String>(
+                return HTTP.Endpoint(
                     url: url,
                     method: .post,
-                    requestPayload: .unprepared(requestBody),
-                    requestContentType: .json,
-                    responseContentType: .json,
-                    interceptors: []
-                ) { response in
-                    guard let responseString = String(data: response.body, encoding: .utf8) else {
-                        throw DecodingError.dataCorrupted(.init(codingPath: [], debugDescription: ""))
+                    payload: (try? .json(from: requestBody)) ?? .empty(),
+                    parser: HTTP.ResponseParser(mimeType: nil) { response in
+                        guard let responseString = String(data: response.body, encoding: .utf8) else {
+                            throw DecodingError.dataCorrupted(.init(codingPath: [], debugDescription: ""))
+                        }
+                        return responseString
                     }
-                    return responseString
-                }
+                )
             }
         }
 
@@ -378,7 +349,7 @@ private extension URL {
             )!)
         }
 
-        let responseString = try await httpClient.call(Feature.helloWorld(message: "Hello World")).get()
+        let responseString = try await httpClient.call(Feature.helloWorld(message: "Hello World"))
         let responseBody = try decoder.decode(Feature.ResponseBody.self, from: Data(responseString.utf8))
 
         #expect(responseBody == expectedResponseBody)

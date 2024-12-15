@@ -31,15 +31,16 @@ struct Response: Decodable {
     /* ... */
 }
 
-let _ = await httpClient.fetch(
+let _ = try await httpClient.fetch(
     Response.self,
     url: URL(string: "https://example.ios")!,
     method: .get,
-    responseContentType: .json,
+    payload: .empty(),
+    parser: .json(),
     interceptors: []
 )
 
-// With unprepared request payload (have HTTP.Client prepare/encode the payload for us)
+// With JSON payload
 
 struct Request: Encodable {
     /* ... */
@@ -47,38 +48,36 @@ struct Request: Encodable {
 
 let request = Request()
 
-let _ = await httpClient.fetch(
+let _ = try await httpClient.fetch(
     Response.self,
     url: URL(string: "https://example.ios")!,
     method: .post,
-    requestPayload: .unprepared(request),
-    requestContentType: .json,
-    responseContentType: .json,
+    payload: .json(from: request),
+    parser: .json(),
     interceptors: []
 )
 
-// With prepared request payload (prepare/encode the payload ourselves)
+// With data payload
 
 let data = try JSONEncoder().encode(request)
 
-let _ = await httpClient.fetch(
+let _ = try await httpClient.fetch(
     Response.self,
     url: URL(string: "https://example.ios")!,
     method: .post,
-    requestPayload: .prepared(data),
-    requestContentType: .json,
-    responseContentType: .json,
+    payload: .data(data, representing: .json),
+    parser: .json(),
     interceptors: []
 )
 
-// Optionally specify response status codes that yield empty responses
+// Specify response statuses that yield empty responses
 
-let result = await httpClient.fetch(
-    Response.self,
+let _ = try await httpClient.fetch(
+    Response?.self,
     url: URL(string: "https://example.ios")!,
     method: .get,
-    responseContentType: .json,
-    emptyResponseStatusCodes: [204],
+    payload: .empty(),
+    parser: .json(ignoring: .noContent),
     interceptors: []
 )
 
@@ -92,22 +91,28 @@ struct AnotherTypeOfErrorBody: Decodable {
     let code: Int
 }
 
-switch result {
-case .success:
-    break
-
-case .failure(.clientError(let errorResponse)):
-    if let errorBody: OneTypeOfErrorBody = try? errorResponse.decode(as: .json) {
+do {
+    let _ = try await httpClient.fetch(
+        Response.self,
+        url: URL(string: "https://example.ios")!,
+        method: .get,
+        payload: .empty(),
+        parser: .json(),
+        interceptors: []
+    )
+} catch let transportError as HTTP.TransportError {
+    print("HTTP Transport Error:", transportError)
+} catch is HTTP.MaxRetryCountReached {
+    print("Max HTTP Request retry count reached")
+} catch let unexpectedResponse as HTTP.UnexpectedResponse {
+    if let errorBody: OneTypeOfErrorBody = try? unexpectedResponse.parsed(using: .json()) {
         print("Error Body:", errorBody)
-    } else if let errorBody = try? errorResponse.decode(as: .json) as AnotherTypeOfErrorBody {
+    } else if let errorBody = try? unexpectedResponse.parsed(as: AnotherTypeOfErrorBody.self, using: .json()) {
         print("Error Body:", errorBody)
     } else {
-        let errorMessage = try? JSONDecoder().decode(String.self, from: errorResponse.body)
+        let errorMessage = try? JSONDecoder().decode(String.self, from: unexpectedResponse.body)
         print("Error Message:", errorMessage ?? "<unknown>")
     }
-
-default:
-    break
 }
 ```
 
@@ -119,7 +124,7 @@ struct UserAgentInterceptor: HTTP.Interceptor {
         request.setValue("My User-Agent", forHTTPHeaderField: "User-Agent")
     }
 
-    func handle(_ transportError: any Error, with context: HTTP.Context) async -> HTTP.Evaluation {
+    func handle(_ transportError: HTTP.TransportError, with context: HTTP.Context) async -> HTTP.Evaluation {
         .proceed
     }
 
@@ -133,7 +138,7 @@ struct RetryOnTransportErrorInterceptor: HTTP.Interceptor {
         // No-op
     }
 
-    func handle(_ transportError: any Error, with context: HTTP.Context) async -> HTTP.Evaluation {
+    func handle(_ transportError: HTTP.TransportError, with context: HTTP.Context) async -> HTTP.Evaluation {
         guard context.retryCount < 5 else {
             return .proceed
         }
@@ -153,9 +158,12 @@ let httpClient = HTTP.Client(
     ]
 )
 
-let _ = await httpClient.fetch(
+let _ = try await httpClient.fetch(
+    Void.self,
     url: URL(string: "https://example.ios")!,
     method: .get,
+    payload: .empty(),
+    parser: .void(),
     interceptors: []
 )
 ```
@@ -168,7 +176,7 @@ struct PrintingObserver: HTTP.Observer {
         print("Did prepare request:", request)
     }
 
-    func didEncounter(_ transportError: any Error, with context: HTTP.Context) {
+    func didEncounter(_ transportError: HTTP.TransportError, with context: HTTP.Context) {
         print("Did encounter transport error:", transportError)
     }
 
@@ -183,9 +191,12 @@ let httpClient = HTTP.Client(
     ]
 )
 
-let _ = await httpClient.fetch(
+let _ = try await httpClient.fetch(
+    Void.self,
     url: URL(string: "https://example.ios")!,
     method: .get,
+    payload: .empty(),
+    parser: .void(),
     interceptors: []
 )
 ```
@@ -202,7 +213,7 @@ struct Feature {
         let text: String
     }
 
-    static func featureEndpoint(text: String) -> HTTP.Endpoint<Response> {
+    static func featureEndpoint(text: String) throws -> HTTP.Endpoint<Response> {
         struct Request: Encodable {
             let text: String
         }
@@ -214,23 +225,130 @@ struct Feature {
         return HTTP.Endpoint(
             url: url,
             method: .post,
-            requestPayload: .unprepared(request),
-            requestContentType: .json,
-            responseContentType: .json,
+            payload: try .json(from: request),
+            parser: HTTP.ResponseParser(mimeType: .json) { response in
+                struct ActualResponse: Decodable {
+                    let number: Int
+                }
+                let actualResponse: ActualResponse = try response.parsed(using: .json())
+                return Response(text: String(actualResponse.number))
+            },
             interceptors: []
-        ) { response in
-            struct ActualResponse: Decodable {
-                let number: Int
-            }
-            let actualResponse: ActualResponse = try response.decode(as: .json)
-            return Response(text: String(actualResponse.number))
-        }
+        )
     }
 }
 
 // Call endpoints on their models/domains
 
-let _ = await httpClient.call(Feature.featureEndpoint(text: "Hello World"))
+let _ = try await httpClient.call(Feature.featureEndpoint(text: "Hello World"))
+```
+
+## Expand
+
+```swift
+public extension HTTP.Method {
+    /// HTTP Method HEAD.
+    static let head = HTTP.Method(rawValue: "HEAD")
+}
+
+public extension HTTP.MimeType {
+    /// HTTP MIME Type `application/jwt`.
+    static let jwt = HTTP.MimeType(rawValue: "application/jwt")
+}
+
+public extension HTTP.Header {
+    /// HTTP (Request) Header `Accept-Language`.
+    static func userAgent(_ value: String) -> HTTP.Header {
+        HTTP.Header(name: "Accept-Language", value: value)
+    }
+}
+
+public extension HTTP.Status {
+    /// HTTP Response Status Codes in the range `400 - 499` (Client error responses).
+    static var clientError: HTTP.Status {
+        HTTP.Status(codes: 400..<500, description: "Client Error")
+    }
+}
+
+public extension HTTP.RequestPayload {
+    /// JWT HTTP Request Payload (MIME Type + Request body).
+    static func jwt<T: Encodable>(from value: T) throws -> HTTP.RequestPayload {
+        let encoder = JSONEncoder()
+        let data = try encoder.encode(value)
+        return HTTP.RequestPayload(mimeType: .jwt, body: data)
+    }
+
+    /// JWT HTTP Request Payload (MIME Type + Request body).
+    static func jwt(_ data: Data) throws -> HTTP.RequestPayload {
+        return HTTP.RequestPayload(mimeType: .jwt, body: data)
+    }
+}
+
+public extension HTTP.ResponseParser {
+    /// HTTP Response Parser that tries to parse any HTTP Response body as a JWT,
+    /// with an optional set of HTTP Response Status Codes to ignore (and just return `nil` instead).
+    static func jwt<T: Decodable>(
+        expecting expectedStatus: HTTP.Status = .successful,
+        ignoring ignoredStatus: HTTP.Status = .clientError
+    ) -> HTTP.ResponseParser<T?> {
+        return HTTP.ResponseParser(mimeType: .jwt) { response in
+            if ignoredStatus.contains(response.statusCode) {
+                return nil
+            }
+            guard expectedStatus.contains(response.statusCode) else {
+                throw HTTP.UnexpectedResponse(response)
+            }
+            let decoder = JSONDecoder()
+            return try decoder.decode(T.self, from: response.body)
+        }
+    }
+}
+
+public struct ProblemResponse: Decodable {
+    let type: String
+    let title: String
+    let detail: String
+}
+
+public extension HTTP.UnexpectedResponse {
+    /// HTTP Unexpected Response Parser that tries to parse any HTTP Unexpected Response body as a `ProblemResponse`.
+    static func problem() -> HTTP.UnexpectedResponseParser<ProblemResponse> {
+        return HTTP.UnexpectedResponseParser() { response in
+            let decoder = JSONDecoder()
+            return try decoder.decode(ProblemResponse.self, from: response.body)
+        }
+    }
+}
+
+// Use expansions
+
+let httpClient = HTTP.Client()
+
+struct RequestJWT: Encodable {
+    let foo: String
+}
+
+struct ResponseJWT: Decodable {
+    let bar: String
+}
+
+do {
+    let endpoint = HTTP.Endpoint<ResponseJWT?>(
+        url: URL(string: "https://example.ios")!,
+        method: .head,
+        payload: try .jwt(from: RequestJWT(foo: "bar")),
+        parser: .jwt(expecting: .successful, ignoring: .clientError),
+        additionalHeaders: [
+            .acceptLanguage("en")
+        ],
+        interceptors: []
+    )
+
+    let _ = try await httpClient.call(endpoint)
+} catch let unexpectedResponse as HTTP.UnexpectedResponse {
+    let problemResponse = try unexpectedResponse.parsed(using: .problemParser())
+    print("Problem Response:", problemResponse)
+}
 ```
 
 ## Disclaimer

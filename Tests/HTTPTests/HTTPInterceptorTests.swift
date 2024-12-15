@@ -4,7 +4,7 @@ import Testing
 import HTTP
 
 @Suite struct HTTPInterceptorTests {
-    @Test func test_request_post_withClientInterceptor_wrapsRequestAndUnwrapsResponse() async throws {
+    @Test func test_fetch_postWithClientInterceptor_wrapsRequestAndUnwrapsResponse() async throws {
         let url = URL(string: "https://example.ios")!
         let session = MockSession()
         let httpClient = HTTP.Client(
@@ -29,24 +29,21 @@ import HTTP
             )!)
         }
 
-        let result = await httpClient.fetch(
+        let responseBody = try await httpClient.fetch(
             String.self,
             url: url,
             method: .post,
-            requestPayload: .unprepared(expectedResponseBody),
-            requestContentType: .json,
-            responseContentType: .json,
+            payload: .json(from: expectedResponseBody),
+            parser: .json(),
             interceptors: [
                 WrappingInterceptor()
             ]
         )
 
-        let responseBody = try result.get()
-
         #expect(responseBody == expectedResponseBody)
     }
 
-    @Test func test_request_post_withRequestInterceptor_wrapsRequestAndUnwrapsResponse() async throws {
+    @Test func test_fetch_postWithRequestInterceptor_wrapsRequestAndUnwrapsResponse() async throws {
         let url = URL(string: "https://example.ios")!
         let session = MockSession()
         let httpClient = HTTP.Client(
@@ -68,24 +65,21 @@ import HTTP
             )!)
         }
 
-        let result = await httpClient.fetch(
+        let responseBody = try await httpClient.fetch(
             String.self,
             url: url,
             method: .post,
-            requestPayload: .unprepared(expectedResponseBody),
-            requestContentType: .json,
-            responseContentType: .json,
+            payload: .json(from: expectedResponseBody),
+            parser: .json(),
             interceptors: [
                 WrappingInterceptor()
             ]
         )
 
-        let responseBody = try result.get()
-
         #expect(responseBody == expectedResponseBody)
     }
 
-    @Test func test_request_post_withClientAndRequestInterceptor_wrapsRequestAndUnwrapsResponse() async throws {
+    @Test func test_fetch_postWithClientAndRequestInterceptor_wrapsRequestAndUnwrapsResponse() async throws {
         let url = URL(string: "https://example.ios")!
         let session = MockSession()
         let httpClient = HTTP.Client(
@@ -110,19 +104,16 @@ import HTTP
             )!)
         }
 
-        let result = await httpClient.fetch(
+        let responseBody = try await httpClient.fetch(
             String.self,
             url: url,
             method: .post,
-            requestPayload: .unprepared(expectedResponseBody),
-            requestContentType: .json,
-            responseContentType: .json,
+            payload: .json(from: expectedResponseBody),
+            parser: .json(),
             interceptors: [
                 WrappingInterceptor()
             ]
         )
-
-        let responseBody = try result.get()
 
         #expect(responseBody == expectedResponseBody)
     }
@@ -138,15 +129,19 @@ private struct WrappingInterceptor: HTTP.Interceptor {
     func prepare(_ request: inout URLRequest, with context: HTTP.Context) async throws {
         let wrapping = Wrapper(content: request.httpBody)
 
-        request.httpBody = try context.encoder.encode(wrapping)
+        let encoder = JSONEncoder()
+
+        request.httpBody = try encoder.encode(wrapping)
     }
-    
-    func handle(_ transportError: any Error, with context: HTTP.Context) async -> HTTP.Evaluation {
+
+    func handle(_ transportError: HTTP.TransportError, with context: HTTP.Context) async -> HTTP.Evaluation {
         .proceed
     }
-    
+
     func process(_ response: inout HTTPURLResponse, data: inout Data, with context: HTTP.Context) async throws -> HTTP.Evaluation {
-        let wrapping = try context.decoder.decode(Wrapper.self, from: data)
+        let decoder = JSONDecoder()
+
+        let wrapping = try decoder.decode(Wrapper.self, from: data)
 
         guard let wrappedContent = wrapping.content else {
             return .proceed

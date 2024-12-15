@@ -15,18 +15,12 @@ private extension URL {
 }
 
 @Suite struct ProtectedEndpointClientTests {
-    @Test func test_call_protectedEndpoint() async throws {
-        let decoder = JSONDecoder()
+    @Test func test_call_endpoint() async throws {
         let session = MockSession()
-        let httpClient = HTTP.Client(
-            session: session,
-            decoder: decoder
-        )
-        let trustProvider = MockTrustProvider()
-        let endpointClient = ProtectedEndpointClient(
-            httpClient: httpClient,
-            trustProvider: trustProvider
-        )
+        let httpClient = HTTP.Client(session: session)
+        let trustMediator = MockTrustMediator()
+        let endpointClient = ProtectedEndpointClient(httpClient: httpClient, trustMediator: trustMediator)
+        let decoder = JSONDecoder()
 
         struct RequestBody: Codable, Equatable {
             let message: String
@@ -68,30 +62,22 @@ private extension URL {
         let endpoint = ProtectedEndpoint<ResponseBody>(
             url: url,
             method: .post,
-            requestPayload: .unprepared(requestBody),
-            requestContentType: .json,
-            responseContentType: .json,
-            authenticationScheme: .dPoPAndAccessToken,
-            interceptors: []
+            payload: (try? .json(from: requestBody)) ?? .empty(),
+            parser: .json(),
+            authenticationScheme: .dPoPAndAccessToken
         )
 
-        let responseBody = try await endpointClient.call(endpoint).get()
+        let responseBody = try await endpointClient.call(endpoint)
 
         #expect(responseBody == expectedResponseBody)
     }
 
-    @Test func test_call_staticallyDefinedProtectedEndpoint() async throws {
-        let decoder = JSONDecoder()
+    @Test func test_call_staticallyDefinedEndpoint() async throws {
         let session = MockSession()
-        let httpClient = HTTP.Client(
-            session: session,
-            decoder: decoder
-        )
-        let trustProvider = MockTrustProvider()
-        let endpointClient = ProtectedEndpointClient(
-            httpClient: httpClient,
-            trustProvider: trustProvider
-        )
+        let httpClient = HTTP.Client(session: session)
+        let trustMediator = MockTrustMediator()
+        let endpointClient = ProtectedEndpointClient(httpClient: httpClient, trustMediator: trustMediator)
+        let decoder = JSONDecoder()
 
         struct Feature {
             struct RequestBody: Codable, Equatable {
@@ -117,11 +103,9 @@ private extension URL {
                 return ProtectedEndpoint<ResponseBody>(
                     url: url,
                     method: .post,
-                    requestPayload: .unprepared(requestBody),
-                    requestContentType: .json,
-                    responseContentType: .json,
-                    authenticationScheme: .dPoPAndAccessToken,
-                    interceptors: []
+                    payload: (try? .json(from: requestBody)) ?? .empty(),
+                    parser: .json(),
+                    authenticationScheme: .dPoPAndAccessToken
                 )
             }
         }
@@ -146,7 +130,7 @@ private extension URL {
             )!)
         }
 
-        let responseBody = try await endpointClient.call(Feature.helloWorld(message: "Hello World")).get()
+        let responseBody = try await endpointClient.call(Feature.helloWorld(message: "Hello World"))
 
         #expect(responseBody == expectedResponseBody)
     }

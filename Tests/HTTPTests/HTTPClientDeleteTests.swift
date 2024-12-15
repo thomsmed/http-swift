@@ -4,7 +4,7 @@ import Testing
 import HTTP
 
 @Suite struct HTTPClientDeleteTests {
-    @Test func test_request_delete_withEmptyRequestBody_returnEmptyResponseBody() async throws {
+    @Test func test_fetch_deleteWithEmptyRequestBody_returnEmptyResponseBody() async throws {
         let url = URL(string: "https://example.ios")!
         let session = MockSession()
         let httpClient = HTTP.Client(session: session)
@@ -19,23 +19,20 @@ import HTTP
             )!)
         }
 
-        let result = await httpClient.fetch(
+        let _ = try await httpClient.fetch(
+            Void.self,
             url: url,
             method: .delete,
-            interceptors: []
+            payload: .empty(),
+            parser: .void()
         )
-
-        _ = try result.get()
     }
 
-    @Test func test_request_delete_withEmptyRequestBody_returnNonEmptyResponseBody() async throws {
+    @Test func test_fetch_deleteWithEmptyRequestBody_returnNonEmptyResponseBody() async throws {
         let url = URL(string: "https://example.ios")!
         let session = MockSession()
+        let httpClient = HTTP.Client(session: session)
         let encoder = JSONEncoder()
-        let httpClient = HTTP.Client(
-            session: session,
-            encoder: encoder
-        )
 
         struct ResponseBody: Codable, Equatable {
             let message: String
@@ -53,27 +50,22 @@ import HTTP
             )!)
         }
 
-        let result = await httpClient.fetch(
+        let responseBody = try await httpClient.fetch(
             ResponseBody.self,
             url: url,
             method: .delete,
-            responseContentType: .json,
-            interceptors: []
+            payload: .empty(),
+            parser: .json()
         )
-
-        let responseBody = try result.get()
 
         #expect(responseBody == expectedResponseBody)
     }
 
-    @Test func test_request_delete_withNonEmptyRequestBody_returnEmptyResponseBody() async throws {
+    @Test func test_fetch_deleteWithNonEmptyRequestBody_returnEmptyResponseBody() async throws {
         let url = URL(string: "https://example.ios")!
         let session = MockSession()
+        let httpClient = HTTP.Client(session: session)
         let decoder = JSONDecoder()
-        let httpClient = HTTP.Client(
-            session: session,
-            decoder: decoder
-        )
 
         struct RequestBody: Codable, Equatable {
             let message: String
@@ -95,25 +87,20 @@ import HTTP
 
         let requestBody = RequestBody(message: "Hello World")
 
-        let result = await httpClient.fetch(
+        let _ = try await httpClient.fetch(
+            Void.self,
             url: url,
             method: .delete,
-            requestPayload: .unprepared(requestBody),
-            requestContentType: .json,
-            interceptors: []
+            payload: .json(from: requestBody),
+            parser: .void()
         )
-
-        _ = try result.get()
     }
 
-    @Test func test_request_delete_withNonEmptyRequestBody_returnNonEmptyResponseBody() async throws {
+    @Test func test_fetch_deleteWithNonEmptyRequestBody_returnNonEmptyResponseBody() async throws {
         let url = URL(string: "https://example.ios")!
-        let decoder = JSONDecoder()
         let session = MockSession()
-        let httpClient = HTTP.Client(
-            session: session,
-            decoder: decoder
-        )
+        let httpClient = HTTP.Client(session: session)
+        let decoder = JSONDecoder()
 
         struct RequestBody: Codable, Equatable {
             let message: String
@@ -142,29 +129,22 @@ import HTTP
 
         let requestBody = RequestBody(message: "Hello World")
 
-        let result = await httpClient.fetch(
+        let responseBody = try await httpClient.fetch(
             ResponseBody.self,
             url: url,
             method: .delete,
-            requestPayload: .unprepared(requestBody),
-            requestContentType: .json,
-            responseContentType: .json,
-            interceptors: []
+            payload: .json(from: requestBody),
+            parser: .json()
         )
-
-        let responseBody = try result.get()
 
         #expect(responseBody == expectedResponseBody)
     }
 
-    @Test func test_request_delete_withEmptyRequestBodyAndEmptyResponseStatusCodes_returnNonEmptyResponseBody() async throws {
+    @Test func test_fetch_deleteWithEmptyRequestBodyIgnoringNoContent_returnNonEmptyResponseBody() async throws {
         let url = URL(string: "https://example.ios")!
         let session = MockSession()
+        let httpClient = HTTP.Client(session: session)
         let encoder = JSONEncoder()
-        let httpClient = HTTP.Client(
-            session: session,
-            encoder: encoder
-        )
 
         struct ResponseBody: Codable, Equatable {
             let message: String
@@ -182,29 +162,23 @@ import HTTP
             )!)
         }
 
-        let result = await httpClient.fetch(
-            ResponseBody.self,
+        let responseBody = try await httpClient.fetch(
+            ResponseBody?.self,
             url: url,
             method: .delete,
-            responseContentType: .json,
-            emptyResponseStatusCodes: [204],
-            interceptors: []
+            payload: .empty(),
+            parser: .json(ignoring: .noContent)
         )
-
-        let responseBody = try result.get()
 
         #expect(responseBody != nil)
         #expect(responseBody == expectedResponseBody)
     }
 
-    @Test func test_request_delete_withEmptyRequestBodyAndEmptyResponseStatusCodes_returnEmptyResponseBody() async throws {
+    @Test func test_fetch_deleteWithEmptyRequestBodyIgnoringNoContent_returnEmptyResponseBody() async throws {
         let url = URL(string: "https://example.ios")!
         let session = MockSession()
+        let httpClient = HTTP.Client(session: session)
         let encoder = JSONEncoder()
-        let httpClient = HTTP.Client(
-            session: session,
-            encoder: encoder
-        )
 
         struct ResponseBody: Codable, Equatable {
             let message: String
@@ -222,28 +196,22 @@ import HTTP
             )!)
         }
 
-        let result = await httpClient.fetch(
-            ResponseBody.self,
+        let responseBody = try await httpClient.fetch(
+            ResponseBody?.self,
             url: url,
             method: .delete,
-            responseContentType: .json,
-            emptyResponseStatusCodes: [204],
-            interceptors: []
+            payload: .empty(),
+            parser: .json(ignoring: .noContent)
         )
-
-        let responseBody = try result.get()
 
         #expect(responseBody == nil)
     }
 
-    @Test func test_request_delete_withNonEmptyRequestBodyAndEmptyResponseStatusCodes_returnNonEmptyResponseBody() async throws {
+    @Test func test_fetch_deleteWithNonEmptyRequestBodyIgnoringNoContent_returnNonEmptyResponseBody() async throws {
         let url = URL(string: "https://example.ios")!
-        let decoder = JSONDecoder()
         let session = MockSession()
-        let httpClient = HTTP.Client(
-            session: session,
-            decoder: decoder
-        )
+        let httpClient = HTTP.Client(session: session)
+        let decoder = JSONDecoder()
 
         struct RequestBody: Codable, Equatable {
             let message: String
@@ -272,31 +240,23 @@ import HTTP
 
         let requestBody = RequestBody(message: "Hello World")
 
-        let result = await httpClient.fetch(
-            ResponseBody.self,
+        let responseBody = try await httpClient.fetch(
+            ResponseBody?.self,
             url: url,
             method: .delete,
-            requestPayload: .unprepared(requestBody),
-            requestContentType: .json,
-            responseContentType: .json,
-            emptyResponseStatusCodes: [204],
-            interceptors: []
+            payload: .json(from: requestBody),
+            parser: .json(ignoring: .noContent)
         )
-
-        let responseBody = try result.get()
 
         #expect(responseBody != nil)
         #expect(responseBody == expectedResponseBody)
     }
 
-    @Test func test_request_delete_withNonEmptyRequestBodyAndEmptyResponseStatusCodes_returnEmptyResponseBody() async throws {
+    @Test func test_fetch_deleteWithNonEmptyRequestBodyIgnoringNoContent_returnEmptyResponseBody() async throws {
         let url = URL(string: "https://example.ios")!
-        let decoder = JSONDecoder()
         let session = MockSession()
-        let httpClient = HTTP.Client(
-            session: session,
-            decoder: decoder
-        )
+        let httpClient = HTTP.Client(session: session)
+        let decoder = JSONDecoder()
 
         struct RequestBody: Codable, Equatable {
             let message: String
@@ -323,23 +283,18 @@ import HTTP
 
         let requestBody = RequestBody(message: "Hello World")
 
-        let result = await httpClient.fetch(
-            ResponseBody.self,
+        let responseBody = try await httpClient.fetch(
+            ResponseBody?.self,
             url: url,
             method: .delete,
-            requestPayload: .unprepared(requestBody),
-            requestContentType: .json,
-            responseContentType: .json,
-            emptyResponseStatusCodes: [204],
-            interceptors: []
+            payload: .json(from: requestBody),
+            parser: .json(ignoring: .noContent)
         )
-
-        let responseBody = try result.get()
 
         #expect(responseBody == nil)
     }
 
-    @Test func test_request_delete_returnClientError() async throws {
+    @Test func test_fetch_delete_throwsUnexpectedResponse() async throws {
         let url = URL(string: "https://example.ios")!
         let session = MockSession()
         let httpClient = HTTP.Client(session: session)
@@ -360,30 +315,25 @@ import HTTP
             )!)
         }
 
-        let result = await httpClient.fetch(
-            url: url,
-            method: .delete,
-            interceptors: []
-        )
-
-        #expect {
-            try result.get()
+        await #expect {
+            try await httpClient.fetch(
+                Void.self,
+                url: url,
+                method: .delete,
+                payload: .empty(),
+                parser: .void()
+            )
         } throws: { error in
             switch error {
-                case let httpFailure as HTTP.Failure:
-                    switch httpFailure {
-                        case let .clientError(response):
-                            return try response.decode(as: .json) == expectedErrorBody
-                        default:
-                            return false
-                    }
+            case let unexpectedResponse as HTTP.UnexpectedResponse:
+                return try unexpectedResponse.parsed(using: .json()) == expectedErrorBody
                 default:
                     return false
             }
         }
     }
 
-    @Test func test_request_delete_returnClientErrorWithData() async throws {
+    @Test func test_fetch_delete_throwsUnexpectedResponseWithData() async throws {
         let url = URL(string: "https://example.ios")!
         let session = MockSession()
         let httpClient = HTTP.Client(session: session)
@@ -404,25 +354,20 @@ import HTTP
             )!)
         }
 
-        let result = await httpClient.fetch(
-            url: url,
-            method: .delete,
-            interceptors: []
-        )
-
-        #expect {
-            try result.get()
+        await #expect {
+            try await httpClient.fetch(
+                Void.self,
+                url: url,
+                method: .delete,
+                payload: .empty(),
+                parser: .void()
+            )
         } throws: { error in
             switch error {
-                case let httpFailure as HTTP.Failure:
-                    switch httpFailure {
-                        case let .clientError(response):
-                            return response.body == expectedErrorResponseData
-                        default:
-                            return false
-                    }
-                default:
-                    return false
+            case let unexpectedResponse as HTTP.UnexpectedResponse:
+                return unexpectedResponse.body == expectedErrorResponseData
+            default:
+                return false
             }
         }
     }

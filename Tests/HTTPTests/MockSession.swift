@@ -6,7 +6,9 @@ final class MockSession: HTTP.Session, @unchecked Sendable {
     let decoder = JSONDecoder()
     let encoder = JSONEncoder()
 
-    var dataAndResponseForRequest: (_ request: URLRequest) async -> (Data, HTTPURLResponse) = { _ in (Data(), HTTPURLResponse()) }
+    var dataAndResponseForRequest: (_ request: URLRequest) async -> (Data, HTTPURLResponse) = { _ in
+        (Data(), HTTPURLResponse())
+    }
 
     func data(for request: URLRequest) async throws -> (Data, HTTPURLResponse) {
         await dataAndResponseForRequest(request)

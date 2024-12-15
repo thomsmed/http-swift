@@ -1,7 +1,7 @@
 import Foundation
 import HTTP
 
-// MARK: TrustProvider
+// MARK: TrustMediator
 
 public struct DPoP: RawRepresentable, Sendable {
     public var rawValue: String
@@ -19,7 +19,7 @@ public struct AccessToken: RawRepresentable, Sendable {
     }
 }
 
-public protocol TrustProvider: Sendable {
+public protocol TrustMediator: Sendable {
     var accessToken: AccessToken? { get async }
     func sign(_ request: URLRequest) async throws -> DPoP
 }
@@ -28,7 +28,7 @@ public protocol TrustProvider: Sendable {
 
 public final class ProtectedEndpointClient: Sendable {
     struct Interceptor: HTTP.Interceptor {
-        let trustProvider: any TrustProvider
+        let trustMediator: any TrustMediator
         let authenticationScheme: AuthenticationScheme
 
         func prepare(
@@ -40,25 +40,25 @@ public final class ProtectedEndpointClient: Sendable {
                     break
 
                 case .dPoP:
-                    let dPoP = try await trustProvider.sign(request)
+                    let dPoP = try await trustMediator.sign(request)
                     request.setValue(dPoP.rawValue, forHTTPHeaderField: "DPoP")
 
                 case .accessToken:
-                    if let accessToken = await trustProvider.accessToken {
+                    if let accessToken = await trustMediator.accessToken {
                         request.setValue("Bearer \(accessToken.rawValue)", forHTTPHeaderField: "Authorization")
                     }
 
                 case .dPoPAndAccessToken:
-                    if let accessToken = await trustProvider.accessToken {
+                    if let accessToken = await trustMediator.accessToken {
                         request.setValue("DPoP \(accessToken.rawValue)", forHTTPHeaderField: "Authorization")
                     }
-                    let dPoP = try await trustProvider.sign(request)
+                    let dPoP = try await trustMediator.sign(request)
                     request.setValue(dPoP.rawValue, forHTTPHeaderField: "DPoP")
             }
         }
 
         func handle(
-            _ transportError: any Error,
+            _ transportError: HTTP.TransportError,
             with context: HTTP.Context
         ) async -> HTTP.Evaluation {
             .proceed
@@ -74,11 +74,11 @@ public final class ProtectedEndpointClient: Sendable {
     }
 
     private let httpClient: HTTP.Client
-    private let trustProvider: any TrustProvider
+    private let trustMediator: any TrustMediator
 
-    public init(httpClient: HTTP.Client, trustProvider: any TrustProvider) {
+    public init(httpClient: HTTP.Client, trustMediator: any TrustMediator) {
         self.httpClient = httpClient
-        self.trustProvider = trustProvider
+        self.trustMediator = trustMediator
     }
 }
 
@@ -86,115 +86,22 @@ public final class ProtectedEndpointClient: Sendable {
 
 public extension ProtectedEndpointClient {
     func call<Resource>(
-        _ protectedEndpoint: ProtectedEndpoint<Resource?>
-    ) async -> Result<Resource?, HTTP.Failure> {
-        let endpoint = protectedEndpoint.endpoint
-        let authenticationScheme = protectedEndpoint.authenticationScheme
-
-        if let requestContentType = endpoint.request.contentType {
-            return await httpClient.fetch(
-                Resource.self,
-                url: endpoint.request.url,
-                method: endpoint.request.method,
-                requestPayload: endpoint.request.payload,
-                requestContentType: requestContentType,
-                responseContentType: endpoint.request.accept ?? .json,
-                emptyResponseStatusCodes: endpoint.emptyResponseStatusCodes,
-                interceptors: [
-                    Interceptor(
-                        trustProvider: trustProvider,
-                        authenticationScheme: authenticationScheme
-                    )
-                ] + endpoint.interceptors,
-                adaptor: endpoint.adaptor
-            )
-        } else {
-            return await httpClient.fetch(
-                Resource.self,
-                url: endpoint.request.url,
-                method: endpoint.request.method,
-                responseContentType: endpoint.request.accept ?? .json,
-                emptyResponseStatusCodes: endpoint.emptyResponseStatusCodes,
-                interceptors: [
-                    Interceptor(
-                        trustProvider: trustProvider,
-                        authenticationScheme: authenticationScheme
-                    )
-                ] + endpoint.interceptors,
-                adaptor: endpoint.adaptor
-            )
-        }
-    }
-
-    func call<Resource>(
         _ protectedEndpoint: ProtectedEndpoint<Resource>
-    ) async -> Result<Resource, HTTP.Failure> {
-        let endpoint = protectedEndpoint.endpoint
-        let authenticationScheme = protectedEndpoint.authenticationScheme
-
-        if let requestContentType = endpoint.request.contentType {
-            return await httpClient.fetch(
-                Resource.self,
-                url: endpoint.request.url,
-                method: endpoint.request.method,
-                requestPayload: endpoint.request.payload,
-                requestContentType: requestContentType,
-                responseContentType: endpoint.request.accept ?? .json,
-                interceptors: [
-                    Interceptor(
-                        trustProvider: trustProvider,
-                        authenticationScheme: authenticationScheme
-                    )
-                ] + endpoint.interceptors,
-                adaptor: endpoint.adaptor
-            )
-        } else {
-            return await httpClient.fetch(
-                Resource.self,
-                url: endpoint.request.url,
-                method: endpoint.request.method,
-                responseContentType: endpoint.request.accept ?? .json,
-                interceptors: [
-                    Interceptor(
-                        trustProvider: trustProvider,
-                        authenticationScheme: authenticationScheme
-                    )
-                ] + endpoint.interceptors,
-                adaptor: endpoint.adaptor
-            )
-        }
-    }
-
-    func call(
-        _ protectedEndpoint: ProtectedEndpoint<Void>
-    ) async -> Result<Void, HTTP.Failure> {
-        let endpoint = protectedEndpoint.endpoint
-        let authenticationScheme = protectedEndpoint.authenticationScheme
-
-        if let requestContentType = endpoint.request.contentType {
-            return await httpClient.fetch(
-                url: endpoint.request.url,
-                method: endpoint.request.method,
-                requestPayload: endpoint.request.payload,
-                requestContentType: requestContentType,
-                interceptors: [
-                    Interceptor(
-                        trustProvider: trustProvider,
-                        authenticationScheme: authenticationScheme
-                    )
-                ] + endpoint.interceptors
-            )
-        } else {
-            return await httpClient.fetch(
-                url: endpoint.request.url,
-                method: endpoint.request.method,
-                interceptors: [
-                    Interceptor(
-                        trustProvider: trustProvider,
-                        authenticationScheme: authenticationScheme
-                    )
-                ] + endpoint.interceptors
-            )
-        }
+    ) async throws -> Resource {
+        try await httpClient.fetch(
+            Resource.self,
+            url: protectedEndpoint.url,
+            method: protectedEndpoint.method,
+            payload: protectedEndpoint.payload,
+            parser: protectedEndpoint.parser,
+            additionalHeaders: protectedEndpoint.additionalHeaders,
+            interceptors: [
+                Interceptor(
+                    trustMediator: trustMediator,
+                    authenticationScheme: protectedEndpoint.authenticationScheme
+                )
+            ] + protectedEndpoint.interceptors,
+            tags: protectedEndpoint.tags
+        )
     }
 }

@@ -62,7 +62,7 @@ private extension URL {
         let endpoint = ProtectedEndpoint<ResponseBody>(
             url: url,
             method: .post,
-            payload: (try? .json(from: requestBody)) ?? .empty(),
+            payload: (try? .json(encoded: requestBody)) ?? .empty(),
             parser: .json(),
             authenticationScheme: .none
         )
@@ -120,7 +120,7 @@ private extension URL {
         let endpoint = ProtectedEndpoint<ResponseBody>(
             url: url,
             method: .post,
-            payload: (try? .json(from: requestBody)) ?? .empty(),
+            payload: (try? .json(encoded: requestBody)) ?? .empty(),
             parser: .json(),
             authenticationScheme: .dPoP
         )
@@ -178,7 +178,7 @@ private extension URL {
         let endpoint = ProtectedEndpoint<ResponseBody>(
             url: url,
             method: .post,
-            payload: (try? .json(from: requestBody)) ?? .empty(),
+            payload: (try? .json(encoded: requestBody)) ?? .empty(),
             parser: .json(),
             authenticationScheme: .accessToken
         )
@@ -237,7 +237,7 @@ private extension URL {
         let endpoint = ProtectedEndpoint<ResponseBody>(
             url: url,
             method: .post,
-            payload: (try? .json(from: requestBody)) ?? .empty(),
+            payload: (try? .json(encoded: requestBody)) ?? .empty(),
             parser: .json(),
             authenticationScheme: .dPoPAndAccessToken
         )

@@ -33,7 +33,7 @@ import HTTP
             String.self,
             url: url,
             method: .post,
-            payload: .json(from: expectedResponseBody),
+            payload: .json(encoded: expectedResponseBody),
             parser: .json(),
             interceptors: [
                 WrappingInterceptor()
@@ -69,7 +69,7 @@ import HTTP
             String.self,
             url: url,
             method: .post,
-            payload: .json(from: expectedResponseBody),
+            payload: .json(encoded: expectedResponseBody),
             parser: .json(),
             interceptors: [
                 WrappingInterceptor()
@@ -108,7 +108,7 @@ import HTTP
             String.self,
             url: url,
             method: .post,
-            payload: .json(from: expectedResponseBody),
+            payload: .json(encoded: expectedResponseBody),
             parser: .json(),
             interceptors: [
                 WrappingInterceptor()

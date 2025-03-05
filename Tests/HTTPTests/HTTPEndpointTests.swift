@@ -56,7 +56,7 @@ private extension URL {
         let endpoint = HTTP.Endpoint<ResponseBody>(
             url: url,
             method: .post,
-            payload: try .json(from: requestBody),
+            payload: try .json(encoded: requestBody),
             parser: .json()
         )
 
@@ -94,7 +94,7 @@ private extension URL {
                 return HTTP.Endpoint(
                     url: url,
                     method: .post,
-                    payload: (try? .json(from: requestBody)) ?? .empty(),
+                    payload: (try? .json(encoded: requestBody)) ?? .empty(),
                     parser: .json()
                 )
             }
@@ -164,7 +164,7 @@ private extension URL {
         let endpoint = HTTP.Endpoint<ResponseBody>(
             url: url,
             method: .post,
-            payload: (try? .json(from: requestBody)) ?? .empty(),
+            payload: (try? .json(encoded: requestBody)) ?? .empty(),
             parser: HTTP.ResponseParser(mimeType: nil) { response in
                 try decoder.decode(ResponseBody.self, from: response.body)
             }
@@ -204,7 +204,7 @@ private extension URL {
                 return HTTP.Endpoint(
                     url: url,
                     method: .post,
-                    payload: (try? .json(from: requestBody)) ?? .empty(),
+                    payload: (try? .json(encoded: requestBody)) ?? .empty(),
                     parser: HTTP.ResponseParser(mimeType: nil) { response in
                         let decoder = JSONDecoder()
                         return try decoder.decode(ResponseBody.self, from: response.body)
@@ -277,7 +277,7 @@ private extension URL {
         let endpoint = HTTP.Endpoint<String>(
             url: url,
             method: .post,
-            payload: (try? .json(from: requestBody)) ?? .empty(),
+            payload: (try? .json(encoded: requestBody)) ?? .empty(),
             parser: HTTP.ResponseParser(mimeType: nil) { response in
                 guard let responseString = String(data: response.body, encoding: .utf8) else {
                     throw DecodingError.dataCorrupted(.init(codingPath: [], debugDescription: ""))
@@ -321,7 +321,7 @@ private extension URL {
                 return HTTP.Endpoint(
                     url: url,
                     method: .post,
-                    payload: (try? .json(from: requestBody)) ?? .empty(),
+                    payload: (try? .json(encoded: requestBody)) ?? .empty(),
                     parser: HTTP.ResponseParser(mimeType: nil) { response in
                         guard let responseString = String(data: response.body, encoding: .utf8) else {
                             throw DecodingError.dataCorrupted(.init(codingPath: [], debugDescription: ""))

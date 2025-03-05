@@ -70,7 +70,7 @@ public extension HTTP.RequestPayload {
     }
 
     /// JSON HTTP Request Payload (MIME Type + Request body).
-    static func json<T: Encodable>(from value: T) throws -> HTTP.RequestPayload {
+    static func json<T: Encodable>(encoded value: T) throws -> HTTP.RequestPayload {
         let encoder = JSONEncoder()
         let data = try encoder.encode(value)
         return HTTP.RequestPayload(mimeType: .json, body: data)

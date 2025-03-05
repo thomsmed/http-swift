@@ -91,7 +91,7 @@ import HTTP
             Void.self,
             url: url,
             method: .post,
-            payload: .json(from: requestBody),
+            payload: .json(encoded: requestBody),
             parser: .void()
         )
     }
@@ -133,7 +133,7 @@ import HTTP
             ResponseBody.self,
             url: url,
             method: .post,
-            payload: .json(from: requestBody),
+            payload: .json(encoded: requestBody),
             parser: .json()
         )
 
@@ -244,7 +244,7 @@ import HTTP
             ResponseBody?.self,
             url: url,
             method: .post,
-            payload: .json(from: requestBody),
+            payload: .json(encoded: requestBody),
             parser: .json(ignoring: .noContent)
         )
 
@@ -287,7 +287,7 @@ import HTTP
             ResponseBody?.self,
             url: url,
             method: .post,
-            payload: .json(from: requestBody),
+            payload: .json(encoded: requestBody),
             parser: .json(ignoring: .noContent)
         )
 

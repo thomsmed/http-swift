@@ -104,7 +104,7 @@ public enum HTTP {
         }
     }
 
-    /// HTTP Request Payload (HTTP MIME Type for `Content-Type` HTTP Request Header + any HTTP Request body data).
+    /// HTTP Request Payload (HTTP MIME Type for the `Content-Type` HTTP Request Header + any HTTP Request body data).
     public struct RequestPayload: Sendable {
         public let mimeType: MimeType?
         public let body: Data?
@@ -118,7 +118,7 @@ public enum HTTP {
         }
     }
 
-    /// HTTP Response Parser (expected HTTP MIME Type for `Content-Type` HTTP Response Header + HTTP Response parse closure).
+    /// HTTP Response Parser (expected HTTP MIME Type for the `Content-Type` HTTP Response Header + HTTP Response parse closure).
     /// Sets the `Accept` HTTP Request Header to the expected HTTP MIME Type.
     public struct ResponseParser<Value>: Sendable {
         public let mimeType: MimeType?

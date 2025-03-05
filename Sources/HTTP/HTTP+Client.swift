@@ -79,6 +79,8 @@ public extension HTTP {
                     observer.didEncounter(transportError, with: context)
                 }
 
+                try Task.checkCancellation()
+
                 // Give the last interceptor the opportunity to handle the error first.
                 for interceptor in interceptors.reversed() {
                     let evaluation = await interceptor.handle(transportError, with: context)
@@ -101,6 +103,8 @@ public extension HTTP {
             for observer in self.observers {
                 observer.didReceive(httpURLResponse, with: context)
             }
+
+            try Task.checkCancellation()
 
             // Give the last interceptor the opportunity to process the response first.
             for interceptor in interceptors.reversed() {

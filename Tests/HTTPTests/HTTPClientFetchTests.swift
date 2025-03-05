@@ -28,7 +28,7 @@ import HTTP
             ResponseBody.self,
             url: url,
             method: .post,
-            payload: .json(from: requestBody),
+            payload: .json(encoded: requestBody),
             parser: .json(),
             additionalHeaders: [
                 .userAgent("Some User-Agent"),
@@ -39,7 +39,7 @@ import HTTP
             HTTP.Response.self,
             url: url,
             method: .post,
-            payload: .json(from: requestBody),
+            payload: .json(encoded: requestBody),
             parser: .passthrough(),
             additionalHeaders: [
                 .userAgent("Some User-Agent"),
@@ -72,7 +72,7 @@ import HTTP
             ResponseBody.self,
             url: url,
             method: .post,
-            payload: .json(from: requestBody),
+            payload: .json(encoded: requestBody),
             parser: .json(expecting: .ok),
             additionalHeaders: [
                 .userAgent("Some User-Agent"),

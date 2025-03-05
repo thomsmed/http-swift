@@ -1,6 +1,6 @@
 # HTTPSwift
 
-A simple - yet powerful - HTTP client library for Swift.
+A simple - yet powerful - HTTP Client library for Swift.
 
 ## Install
 
@@ -52,7 +52,7 @@ let _ = try await httpClient.fetch(
     Response.self,
     url: URL(string: "https://example.ios")!,
     method: .post,
-    payload: .json(from: request),
+    payload: .json(encoded: request),
     parser: .json(),
     interceptors: []
 )
@@ -201,7 +201,7 @@ let _ = try await httpClient.fetch(
 )
 ```
 
-## Encapsulate requests in Endpoints
+## Represent requests and responses as Endpoints
 
 ```swift
 let httpClient = HTTP.Client()
@@ -225,7 +225,7 @@ struct Feature {
         return HTTP.Endpoint(
             url: url,
             method: .post,
-            payload: try .json(from: request),
+            payload: try .json(encoded: request),
             parser: HTTP.ResponseParser(mimeType: .json) { response in
                 struct ActualResponse: Decodable {
                     let number: Int
@@ -243,7 +243,7 @@ struct Feature {
 let _ = try await httpClient.call(Feature.featureEndpoint(text: "Hello World"))
 ```
 
-## Expand
+## Extend
 
 ```swift
 public extension HTTP.Method {
@@ -272,7 +272,7 @@ public extension HTTP.Status {
 
 public extension HTTP.RequestPayload {
     /// JWT HTTP Request Payload (MIME Type + Request body).
-    static func jwt<T: Encodable>(from value: T) throws -> HTTP.RequestPayload {
+    static func jwt<T: Encodable>(encoded value: T) throws -> HTTP.RequestPayload {
         let encoder = JSONEncoder()
         let data = try encoder.encode(value)
         return HTTP.RequestPayload(mimeType: .jwt, body: data)
@@ -320,7 +320,7 @@ public extension HTTP.UnexpectedResponse {
     }
 }
 
-// Use expansions
+// Use extensions
 
 let httpClient = HTTP.Client()
 
@@ -336,7 +336,7 @@ do {
     let endpoint = HTTP.Endpoint<ResponseJWT?>(
         url: URL(string: "https://example.ios")!,
         method: .head,
-        payload: try .jwt(from: RequestJWT(foo: "bar")),
+        payload: try .jwt(encoded: RequestJWT(foo: "bar")),
         parser: .jwt(expecting: .successful, ignoring: .clientError),
         additionalHeaders: [
             .acceptLanguage("en")
@@ -346,7 +346,7 @@ do {
 
     let _ = try await httpClient.call(endpoint)
 } catch let unexpectedResponse as HTTP.UnexpectedResponse {
-    let problemResponse = try unexpectedResponse.parsed(using: .problemParser())
+    let problemResponse = try unexpectedResponse.parsed(using: .problem())
     print("Problem Response:", problemResponse)
 }
 ```

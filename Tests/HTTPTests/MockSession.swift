@@ -10,7 +10,7 @@ final class MockSession: HTTP.Session, @unchecked Sendable {
         (Data(), HTTPURLResponse())
     }
 
-    func data(for request: URLRequest) async throws -> (Data, HTTPURLResponse) {
+    func data(for request: URLRequest, followRedirects: Bool) async throws -> (Data, HTTPURLResponse) {
         await dataAndResponseForRequest(request)
     }
 }

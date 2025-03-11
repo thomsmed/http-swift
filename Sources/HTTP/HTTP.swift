@@ -66,17 +66,20 @@ public enum HTTP {
         public var method: HTTP.Method
         public var body: Data?
         public var headers: [Header]
+        public var followRedirects: Bool
 
         public init(
             url: URL,
             method: HTTP.Method,
             body: Data? = nil,
-            headers: [Header] = []
+            headers: [Header] = [],
+            followRedirects: Bool = true
         ) {
             self.url = url
             self.method = method
             self.body = body
             self.headers = headers
+            self.followRedirects = followRedirects
         }
     }
 
@@ -211,6 +214,6 @@ public enum HTTP {
 
     /// A protocol representing something that can send `URLRequests` and receive `HTTPURLResponse` (with `Data`).
     public protocol Session: Sendable {
-        func data(for request: URLRequest) async throws -> (Data, HTTPURLResponse)
+        func data(for request: URLRequest, followRedirects: Bool) async throws -> (Data, HTTPURLResponse)
     }
 }

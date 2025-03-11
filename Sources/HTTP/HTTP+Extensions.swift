@@ -142,3 +142,10 @@ public extension HTTP.UnexpectedResponseParser {
         }
     }
 }
+
+public extension HTTP.Session {
+    /// Follow HTTP redirects by default.
+    func data(for request: URLRequest) async throws -> (Data, HTTPURLResponse) {
+        try await data(for: request, followRedirects: true)
+    }
+}

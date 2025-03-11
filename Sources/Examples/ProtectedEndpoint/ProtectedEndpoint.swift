@@ -15,6 +15,7 @@ public struct ProtectedEndpoint<Resource> {
     public let parser: HTTP.ResponseParser<Resource>
     public let authenticationScheme: AuthenticationScheme
     public let additionalHeaders: [HTTP.Header]
+    public let followRedirects: Bool
     public let interceptors: [HTTP.Interceptor]
     public let tags: [String: String]
 
@@ -25,6 +26,7 @@ public struct ProtectedEndpoint<Resource> {
         parser: HTTP.ResponseParser<Resource>,
         authenticationScheme: AuthenticationScheme,
         additionalHeaders: [HTTP.Header] = [],
+        followRedirects: Bool = true,
         interceptors: [HTTP.Interceptor] = [],
         tags: [String: String] = [:]
     ) {
@@ -34,6 +36,7 @@ public struct ProtectedEndpoint<Resource> {
         self.parser = parser
         self.authenticationScheme = authenticationScheme
         self.additionalHeaders = additionalHeaders
+        self.followRedirects = followRedirects
         self.interceptors = interceptors
         self.tags = tags
     }

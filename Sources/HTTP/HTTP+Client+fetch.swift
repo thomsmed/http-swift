@@ -8,6 +8,7 @@ public extension HTTP.Client {
         payload: HTTP.RequestPayload,
         parser: HTTP.ResponseParser<Resource>,
         additionalHeaders: [HTTP.Header] = [],
+        followRedirects: Bool = true,
         interceptors: [HTTP.Interceptor] = [],
         tags: [String: String] = [:]
     ) async throws -> Resource {
@@ -25,7 +26,8 @@ public extension HTTP.Client {
             url: url,
             method: method,
             body: payload.body,
-            headers: headers
+            headers: headers,
+            followRedirects: followRedirects
         )
 
         let response = try await send(

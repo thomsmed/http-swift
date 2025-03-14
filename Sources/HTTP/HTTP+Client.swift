@@ -69,7 +69,10 @@ public extension HTTP {
 
             var (data, httpURLResponse): (Data, HTTPURLResponse)
             do {
-                (data, httpURLResponse) = try await session.data(for: urlRequest)
+                (data, httpURLResponse) = try await session.data(
+                    for: urlRequest,
+                    followRedirects: request.followRedirects
+                )
             } catch let cancellationError as CancellationError {
                 throw cancellationError
             } catch {

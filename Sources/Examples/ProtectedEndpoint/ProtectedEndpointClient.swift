@@ -95,6 +95,7 @@ public extension ProtectedEndpointClient {
             payload: protectedEndpoint.payload,
             parser: protectedEndpoint.parser,
             additionalHeaders: protectedEndpoint.additionalHeaders,
+            followRedirects: protectedEndpoint.followRedirects,
             interceptors: [
                 Interceptor(
                     trustMediator: trustMediator,

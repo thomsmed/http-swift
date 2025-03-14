@@ -7,6 +7,7 @@ public extension HTTP {
         public let payload: HTTP.RequestPayload
         public let parser: HTTP.ResponseParser<Resource>
         public let additionalHeaders: [HTTP.Header]
+        public let followRedirects: Bool
         public let interceptors: [HTTP.Interceptor]
         public let tags: [String: String]
 
@@ -16,6 +17,7 @@ public extension HTTP {
             payload: HTTP.RequestPayload,
             parser: HTTP.ResponseParser<Resource>,
             additionalHeaders: [HTTP.Header] = [],
+            followRedirects: Bool = true,
             interceptors: [HTTP.Interceptor] = [],
             tags: [String: String] = [:]
         ) {
@@ -24,6 +26,7 @@ public extension HTTP {
             self.payload = payload
             self.parser = parser
             self.additionalHeaders = additionalHeaders
+            self.followRedirects = followRedirects
             self.interceptors = interceptors
             self.tags = tags
         }
